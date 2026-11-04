@@ -444,7 +444,7 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
   - Menu answers apply directly: Re Pollack; Ex parte Official Receiver (1962) 107 CLR 76 becomes not_located (AIC-0073), and AIC-0076's party type becomes other.
   - Typed answers are fixed values in `aic/flags.py`, each with Luc's note:
     - AIC-0019's citation is [2025] QIRC 141 (the header read had found 121);
-    - AIC-0021 is [AIC-0021: title withheld] [2025] VCC 868;
+    - AIC-0021 is [2025] VCC 868 (title as Luc typed it; not shown here under PRIVACY.md B1);
     - three titles are as published;
     - paragraph references are restored for AIC-0004, AIC-0021, AIC-0023 and AIC-0107.
   - Unsure answers:
@@ -452,7 +452,7 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
     - AIC-0009 (a Wikisource copy) keeps its values, with a note that the official version could not be opened to compare. The citation, court and date agree across reproductions.
 - **Paragraph numbers in Word judgments:** `aic/docxnum.py` now follows each paragraph to its own numbering list, rather than assuming one list per document.
   - It gives identical output on the County Court practice note, and all 233 rules quotes still verify.
-  - On [AIC-0021: title withheld] it places the quotes in [19]–[21], exactly as Luc read them. On Murray v Victoria it places them in [4], [8], [10], [14] and [15], plus the costs and leave-to-amend orders that Luc identified, so those paragraph numbers come from the documents themselves.
+  - On AIC-0021 ([2025] VCC 868) it places the quotes in [19]–[21], exactly as Luc read them. On Murray v Victoria it places them in [4], [8], [10], [14] and [15], plus the costs and leave-to-amend orders that Luc identified, so those paragraph numbers come from the documents themselves.
 - **Result:**
   - The 37 rows become "flags checked by Luc".
   - The 8 from non-AustLII copies publish in full, so 20 rows now have full details.

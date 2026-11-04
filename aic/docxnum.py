@@ -11,7 +11,7 @@ Handles: numbering set on the paragraph or inherited from its style (and base st
 numId 0 switching numbering off, list definitions that point to a list style
 (numStyleLink), and level start values. Paragraphs without numbering are returned as they
 are. Checked on the County Court of Victoria's AI practice note (26 Oct 2026) and on two
-judgments in Word format ([AIC-0021: title withheld], County Court; Murray v Victoria, Federal Court;
+judgments in Word format (AIC-0021, [2025] VCC 868, County Court; Murray v Victoria, Federal Court;
 27 Oct 2026; DECISIONS.md D042).
 """
 
