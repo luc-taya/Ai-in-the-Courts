@@ -13,7 +13,8 @@
     "build": "node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build && node scripts/remove_sync_copies.ts",
     "test": "node node_modules/vitest/vitest.mjs run",
     "lint": "node node_modules/eslint/bin/eslint.js .",
-    "typecheck": "node node_modules/typescript/bin/tsc --noEmit"
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "e2e": "node node_modules/@playwright/test/cli.js test"
   },
   "dependencies": {
     "mammoth": "1.13.0",
