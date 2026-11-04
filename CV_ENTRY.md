@@ -39,8 +39,8 @@ I built AI in Australian Courts (ai-in-australian-courts.pages.dev), a public tr
 - Rules matrix: https://ai-in-australian-courts.pages.dev/rules
 - Checklist (web): https://ai-in-australian-courts.pages.dev/checklist
 - Checklist (A4 PDF): https://ai-in-australian-courts.pages.dev/checklist.pdf
-- Code, data and decision log: https://github.com/129313531343-bit/Ai-in-the-Courts
-- Methods note (PDF): https://github.com/129313531343-bit/Ai-in-the-Courts/blob/main/docs/methods.pdf
+- Code, data and decision log: https://github.com/luc-taya/Ai-in-the-Courts
+- Methods note (PDF): https://github.com/luc-taya/Ai-in-the-Courts/blob/main/docs/methods.pdf
 - CiteCheck AU (preview): https://ai-in-australian-courts.pages.dev/citecheck/
 
 ## (d) Status
