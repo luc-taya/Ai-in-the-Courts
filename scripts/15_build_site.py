@@ -3,7 +3,8 @@
 Pages: index, tracker (filters only: court, year, party type, consequence;
 no free-text or name search), rules matrix, checklist (built by
 14_build_checklist.py), about (methods, privacy,
-corrections). Every number shown is read from data/ at build time.
+corrections), and a 404 page for unknown addresses. Every number shown is read
+from data/ at build time.
 
 Privacy (PRIVACY.md, D015): no party names in page titles, descriptions or
 URLs; the tracker page and its data carry noindex; self-represented rows show
@@ -238,6 +239,16 @@ official sources.</p>
 """
     (SITE / "about.html").write_text(page("About: AI in Australian Courts", about,
                                           description="Method, AI use, privacy and corrections."))
+
+    # Cloudflare Pages serves a top-level 404.html for unknown addresses; without one it falls back to the home
+    # page, which hides broken links.
+    missing = """
+<h1>Page not found</h1>
+<p>There is no page at this address. The link may be mistyped, or the page may have moved.</p>
+<p><a href="/">Go to the home page</a>, or use the menu above.</p>
+"""
+    (SITE / "404.html").write_text(page("Page not found: AI in Australian Courts", missing, noindex=True,
+                                        description="This page does not exist."))
 
     # Downloads hold court-published titles: keep them out of search indexes (PRIVACY.md rule 2).
     # CiteCheck's index files (built into site/citecheck/ by Vite; D038) hold case metadata: no indexing.
