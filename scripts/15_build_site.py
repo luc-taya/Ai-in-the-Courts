@@ -107,6 +107,9 @@ def main() -> None:
     n_rows = len(tracker)
     n_pub = stats["rows_publishing_extracted_fields"]
     n_held = stats.get("rows_with_details_withheld_pending_austlii", 0)
+    # Held-back rows whose fake citations Luc read himself (D035, D042): their details_withheld note names them.
+    held = tracker[tracker.details_withheld != ""]
+    n_luc_impugned = int(held.details_withheld.str.contains("impugned citations", regex=False).sum())
     n_rules = int(((rules.instrument != "") & (rules.instrument != "No specific AI guidance found")).sum())
     by_status = stats["by_verification_status"]
     index = f"""
@@ -222,7 +225,7 @@ checked by hand on each flagged point and are labelled <em>flags checked by Luc<
 <p>Most judgment copies in Charlotin's database were printed from AustLII. Our code never accessed AustLII, but the text of those copies
 (with AustLII's headers removed) was processed by the AI model. We are asking AustLII whether this use is acceptable. Until it replies,
 the details the AI extracted from those copies are held back. Rows checked by hand against the judgment, facts read by script (citation,
-court, date) and Charlotin's own coding are shown, as are the fake citations Luc read against the judgment in 20 of the held-back rows.</p>
+court, date) and Charlotin's own coding are shown, as are the fake citations Luc read against the judgment in {n_luc_impugned} of the held-back rows.</p>
 <h2>Privacy</h2>
 <p>The tracker records only what each judgment says. Self-represented parties can be filtered but not searched by name, and their case
 titles are not shown on the tracker page. Family law matters use only the court's anonymised title (Family Law Act 1975 (Cth) s 114Q).</p>
