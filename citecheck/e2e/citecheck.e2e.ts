@@ -52,7 +52,7 @@ test("offline mode stays on the site's origin", async ({ page, context, baseURL 
   const sockets: string[] = [];
   page.on("websocket", (ws) => sockets.push(ws.url()));
   await openPage(page);
-  await page.locator("#offline").check();
+  await page.getByLabel("Offline mode: contact no other site").check(); // the label states what this test proves
   await page.locator("#text").fill(sentinelDocument());
   await page.locator("#run").click();
   await expect(page.locator(ROWS)).toHaveCount(3);
