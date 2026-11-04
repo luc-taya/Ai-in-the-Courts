@@ -54,8 +54,11 @@ async function run(): Promise<void> {
     const checker = new Checker(browserLoader, { ...DEFAULTS, offline: $<HTMLInputElement>("offline").checked, asAt: today() });
     const results = await checker.checkAll(cites);
     render(results);
+    const down = new Set(results.filter((r) => r.registerUnreachable).map((r) => r.record?.title ?? r.citation.raw)).size;
+    const outage = down ? ` The Federal Register of Legislation could not be reached, so section numbers were not checked ` +
+      `for ${down} Commonwealth Act${down === 1 ? "" : "s"}. Try again later.` : "";
     $("status").textContent = `${cites.length} citation${cites.length === 1 ? "" : "s"} checked in ` +
-      `${((performance.now() - started) / 1000).toFixed(1)} s. Anything the list does not show was not recognised as a citation.`;
+      `${((performance.now() - started) / 1000).toFixed(1)} s.${outage} Anything the list does not show was not recognised as a citation.`;
   } catch (e) {
     $("status").textContent = `Something went wrong while checking: ${e instanceof Error ? e.message : e}`;
   } finally {

@@ -68,6 +68,19 @@ test("offline mode stays on the site's origin", async ({ page, context, baseURL 
   expectCleanNetwork(net);
 });
 
+test("Federal Register outage is reported on the status line", async ({ page, context, baseURL }) => {
+  const net = await controlNetwork(context, originOf(baseURL), { registerStatus: 503 });
+  await openPage(page);
+  await page.locator("#text").fill(sentinelDocument());
+  await page.locator("#run").click();
+  await expect(page.locator(ROWS)).toHaveCount(3);
+  await expect(page.locator("#status")).toContainText("The Federal Register of Legislation could not be reached, " +
+    "so section numbers were not checked for 1 Commonwealth Act. Try again later.");
+  await expect(page.locator(ROWS).filter({ hasText: "Imaginary Commerce Act 2001" })).toContainText("could not be reached");
+  expect(net.register.length).toBeGreaterThan(0);
+  expectCleanNetwork(net);
+});
+
 test("50 citations in under 3 s from cold start", async ({ browser, baseURL }) => {
   // Cold start: a new browser context (empty cache) and a freshly loaded page. The fixture index is served by
   // route, so network latency is excluded: this times the page's own parsing, index reading and matching

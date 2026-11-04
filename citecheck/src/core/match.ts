@@ -14,7 +14,7 @@
  * They may be tuned on the dev split only, after the freeze (DECISIONS.md D029, D037).
  */
 import { decodeSides, fingerprintSides, fp } from "./fingerprint.ts";
-import { baseSection, fetchSections, type SectionList } from "./legislation.ts";
+import { baseSection, fetchSections, RegisterUnavailable, type SectionList } from "./legislation.ts";
 import { COURTS } from "./parse.ts";
 import { findSeries, reportKey, seriesKey } from "./series.ts";
 import type { CaseCitation, Citation, StatuteCitation } from "./types.ts";
@@ -31,6 +31,8 @@ export interface Result {
   record: { date?: string; url?: string; citedBy?: number; usualYear?: number; title?: string } | null;
   links: Link[];
   notes: string[];
+  /** Set when section numbers were not checked because the Federal Register could not be reached. */
+  registerUnreachable?: boolean;
 }
 
 /** Reads index files: the browser fetches them from the site, Node reads them from disk. */
@@ -243,10 +245,16 @@ export class Checker {
         { record, links, notes });
     }
     let list: SectionList | null = null;
+    let unreachable = false;
     try {
       list = await fetchSections(act.i, this.settings.asAt, this.settings.fetchFn ?? fetch);
-    } catch {
+    } catch (e) {
+      unreachable = e instanceof RegisterUnavailable;
       list = null;
+    }
+    if (unreachable) {
+      return this.result(s, "FOUND", `${act.n} is on the Federal Register, but the Register could not be reached, ` +
+        "so section numbers were not checked.", { record, links, notes, registerUnreachable: true });
     }
     if (!list) {
       return this.result(s, "FOUND", `${act.n} is on the Federal Register, but its current text could not be read, ` +

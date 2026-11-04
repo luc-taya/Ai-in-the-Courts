@@ -47,25 +47,79 @@ export function baseSection(section: string): string {
   return /^\d+[A-Z]*/.exec(section.replace(/\s/g, ""))?.[0] ?? section;
 }
 
+/** How long each Federal Register request may take, reading included, before the Register counts as unreachable. */
+export const REGISTER_TIMEOUT_MS = 8000;
+
+/** The Federal Register could not be reached: a network error, no answer in time, or a server error (HTTP 5xx). */
+export class RegisterUnavailable extends Error {
+  constructor(detail: string) {
+    super(`The Federal Register of Legislation could not be reached (${detail}).`);
+    this.name = "RegisterUnavailable";
+  }
+}
+
 const cache = new Map<string, Promise<SectionList | null>>();
 
-/** Sections of the version in force on `asAt` (YYYY-MM-DD), or null if none is found. */
+/**
+ * Sections of the version in force on `asAt` (YYYY-MM-DD), or null if none is found or its text cannot be read.
+ * Rejects with RegisterUnavailable when the Register cannot be reached; that failure is not cached, so the next
+ * check tries again.
+ */
 export function fetchSections(titleId: string, asAt: string, fetchFn: typeof fetch = fetch): Promise<SectionList | null> {
   const key = `${titleId}@${asAt}`;
-  if (!cache.has(key)) cache.set(key, load(titleId, asAt, fetchFn));
+  if (!cache.has(key)) {
+    const loading = load(titleId, asAt, fetchFn);
+    cache.set(key, loading);
+    loading.catch(() => cache.delete(key));
+  }
   return cache.get(key)!;
 }
 
 async function load(titleId: string, asAt: string, fetchFn: typeof fetch): Promise<SectionList | null> {
-  const v = await fetchFn(`${API}/versions/find(titleid='${encodeURIComponent(titleId)}',asat=${asAt})`);
-  if (!v.ok) return null;
-  const version = (await v.json()) as { registerId?: string; start?: string };
-  if (!version.registerId) return null;
-  const doc = await fetchFn(`${API}/documents/find(registerId='${encodeURIComponent(version.registerId)}',` +
-    "type='Primary',format='Epub',uniqueTypeNumber=0,volumeNumber=0,rectificationVersionNumber=0)");
-  if (!doc.ok) return null;
-  const ncx = await readZipEntry(new Uint8Array(await doc.arrayBuffer()), "document.ncx");
+  const version = await call(fetchFn, `${API}/versions/find(titleid='${encodeURIComponent(titleId)}',asat=${asAt})`,
+    async (r) => (await r.json()) as { registerId?: string; start?: string });
+  if (!version?.registerId) return null;
+  const epub = await call(fetchFn, `${API}/documents/find(registerId='${encodeURIComponent(version.registerId)}',` +
+    "type='Primary',format='Epub',uniqueTypeNumber=0,volumeNumber=0,rectificationVersionNumber=0)",
+    async (r) => new Uint8Array(await r.arrayBuffer()));
+  if (!epub) return null;
+  const ncx = await readZipEntry(epub, "document.ncx");
   if (!ncx) return null;
   return { registerId: version.registerId, start: (version.start ?? "").slice(0, 10),
     ...sectionsFromNcx(new TextDecoder().decode(ncx)) };
+}
+
+/**
+ * One Federal Register request, answered and read within REGISTER_TIMEOUT_MS. A network error, a timeout or an
+ * HTTP 5xx rejects with RegisterUnavailable; any other non-OK answer, or a body that cannot be read, gives null.
+ */
+async function call<T>(fetchFn: typeof fetch, url: string, read: (r: Response) => Promise<T>): Promise<T | null> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new RegisterUnavailable(`no answer within ${REGISTER_TIMEOUT_MS / 1000} s`));
+    }, REGISTER_TIMEOUT_MS);
+  });
+  const answer = (async () => {
+    let r: Response;
+    try {
+      r = await fetchFn(url, { signal: controller.signal });
+    } catch (e) {
+      throw new RegisterUnavailable(e instanceof Error ? e.message : String(e));
+    }
+    if (r.status >= 500) throw new RegisterUnavailable(`HTTP ${r.status}`);
+    if (!r.ok) return null;
+    try {
+      return await read(r);
+    } catch {
+      return null;
+    }
+  })();
+  try {
+    return await Promise.race([answer, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

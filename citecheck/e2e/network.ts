@@ -26,7 +26,12 @@ export interface Network {
 const DATA = /^\/citecheck\/data\/(.+)$/;
 const CORS = { "access-control-allow-origin": "*" };
 
-export async function controlNetwork(context: BrowserContext, origin: string): Promise<Network> {
+export interface Options {
+  /** Answer every Federal Register request with this HTTP status, to simulate an outage (e.g. 503). */
+  registerStatus?: number;
+}
+
+export async function controlNetwork(context: BrowserContext, origin: string, options: Options = {}): Promise<Network> {
   const files = await indexFiles();
   const net: Network = { origin, requests: [], dataRouted: [], dataMissing: [], register: [], blocked: [] };
   context.on("request", (r) => net.requests.push(r));
@@ -46,6 +51,7 @@ export async function controlNetwork(context: BrowserContext, origin: string): P
     }
     if (url.hostname === REGISTER_HOST) {
       net.register.push(url.href);
+      if (options.registerStatus) return route.fulfill({ status: options.registerStatus, headers: CORS, body: "" });
       if (url.pathname.includes("/versions/find(")) {
         return route.fulfill({ status: 200, headers: CORS, contentType: "application/json", body: JSON.stringify(registerVersion()) });
       }
