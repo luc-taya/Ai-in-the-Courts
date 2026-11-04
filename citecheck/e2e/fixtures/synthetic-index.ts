@@ -24,6 +24,8 @@ const SECOND = ["Marchbank", "Lindell", "Abernell", "Castellow", "Duvane", "Ever
 const FCA_MAX = 30;
 const FCA_GAPS = new Set([7, 13]);
 const fcaParties = (n: number) => `${FIRST[n - 1]} v ${SECOND[n - 1]}${n % 4 === 0 ? " Pty Ltd" : ""}`;
+/** The parties and citation of invented decision n (1 to 30) as a judge would write them, e.g. for a test PDF. */
+export const fcaCitation = (n: number) => `${fcaParties(n)} [2019] FCA ${n}`;
 
 /** Invented CLR reports: [parties, volume, page, year]. */
 const CLR: [string, number, number, number][] = [
