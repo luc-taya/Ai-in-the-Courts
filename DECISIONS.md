@@ -378,7 +378,7 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
 - **Commonwealth Acts:**
   - The API cannot search former names (its nameHistory filter fails server side), so the full Act list (13,747 Acts with former names and status) is downloaded once at build time (`scripts/29_fetch_cth_acts.py`, index (d), 1 request per 10 s).
   - Section numbers are checked live against the EPUB of the version in force: register id and date only, read with the platform's own decompression (`zip.ts`, `legislation.ts`).
-  - Offline mode makes no request and says sections were not checked.
+  - Offline mode makes no request and says sections were not checked. *(Corrected by D044: offline mode still loads this site's own index files; it contacts no other site.)*
   - A repealed Act is FOUND with its status shown; a former name is FOUND with the current name shown.
 - **State Acts:** titles in force at the snapshot only (index (c)). Sections are not checked, and the page says so.
 - **Links:** the official copy (corpus URL), AustLII for MNCs (format confirmed by Luc), and the Federal Register. LawCite and JADE links wait for Luc to confirm their formats (brief).
@@ -396,7 +396,7 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
   - LawCite and JADE are linked only at their home pages: per-citation link formats wait for Luc to confirm them (brief).
 - **Checked in a browser** (local server, 26 Oct 2026):
   - A made-up 10-citation example was checked in 1.2 s cold, including a live Federal Register section check, and each result was the expected one. For instance, *Mabo v Commonwealth* (1992) 175 CLR 1 gives a name–citation mismatch, and s 52 of the Trade Practices Act 1974 resolves to the Competition and Consumer Act 2010, which has no s 52 today.
-  - Offline mode sent nothing and said that sections were not checked.
+  - Offline mode sent nothing and said that sections were not checked. *(Corrected by D044: it sent nothing to any other site; the site's own index files were still loaded.)*
   - A test PDF and a test Word file were read and checked.
   - At phone width (375 px) there is no sideways scrolling.
 - **Corrections to public text found on the way:**
@@ -467,3 +467,8 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
   - The rebuilt `data/tracker.csv` and `data/interim/tracker_full.csv` are byte-identical to before.
   - The scan now finds 0 hits in the LUC-CHECKED files.
 - **Still open (Luc decides):** the names remain in the git history (d9c3bb0 and the 11 commits after it, all on GitHub). Removing them needs a history rewrite and a force push.
+
+### D044: CiteCheck offline wording (5 Nov 2026)
+- **Problem:** the page said offline mode would "send nothing anywhere", and D037 and D038 said it "makes no request" and "sent nothing". In fact offline mode still loads the site's own index files (`citecheck/src/loader.ts`). The names of the files requested show which courts, years and report series a document cites, though never the document's text.
+- **Change:** the page says offline mode "contacts no other site" (commit 1240f71). A Playwright test (`citecheck/e2e/`) checks that no request leaves the site's origin. The privacy paragraph now also says what the index requests show. D037 and D038 carry a note pointing here.
+- **Status:** Luc approved the run's approval items, this wording among them ("Approve all.", 5 Nov 2026, relayed by his run-monitor session).
