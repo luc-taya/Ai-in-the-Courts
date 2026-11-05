@@ -1,6 +1,6 @@
 # CV entry: AI in Australian Courts (Release 1)
 
-Hand-off for Luc's CVs. Every number below comes from the project's data (`data/stats.json`, `data/rules.csv`, `data/interim/agreement.json` and the methods note) as at 26 October 2026. Re-check them against the live site before reuse if the data has been updated.
+Hand-off for Luc's CVs. Every number below comes from the project's data (`data/stats.json`, `data/rules.csv`, `data/interim/agreement.json` and the methods note) as at 27 October 2026. The CV already sent used the wording of that date; the bullets below are the corrected version for future CVs. Re-check them against the live site before reuse if the data has been updated.
 
 ## (a) CV bullets
 
@@ -11,7 +11,7 @@ Hand-off for Luc's CVs. Every number below comes from the project's data (`data/
 - Measured data quality before publishing:
   - a pre-registered random audit of 10 rows found 91.1% of judgement-based fields correct (72 of 79; Wilson 95% CI 82.8–95.6%);
   - party coding agreed with the source database in 90.7% of 97 rows (Cohen's kappa 0.74).
-- Ran the AI extraction for US$9.88 under a self-imposed US$30 cap. All 1,615 extracted quotations were matched character for character against the judgment text.
+- Ran the AI extraction for US$9.88 under a self-imposed US$30 cap. Each of the 1,615 extracted quotations is tied to its exact position in the judgment text, so every extracted fact can be traced to its source (traceability, not a measure of accuracy; the audit above measures accuracy).
 
 ### Legal version
 - Built a public tracker of 112 Australian decisions in which AI-generated false citations reached a court or tribunal.
@@ -21,12 +21,12 @@ Hand-off for Luc's CVs. Every number below comes from the project's data (`data/
 - Wrote a one-page citation-verification checklist for paralegals (web page and A4 PDF), citing the matrix paragraphs. In the source database's coding, about half of the Australian cases with coded errors (55 of 108) involved misrepresented authorities or false quotes, not only invented cases.
 
 ### General / AI version
-- Designed and shipped an AI-assisted legal-data pipeline (Python; Claude API with citations and structured outputs) that extracts facts from 104 court judgments. Every extracted field must rest on a quotation found verbatim in the judgment; all 1,615 quotations matched.
+- Designed and shipped an AI-assisted legal-data pipeline (Python; Claude API with citations and structured outputs) that extracts facts from 104 court judgments. Every extracted field must rest on a quotation tied to its exact position in the judgment (1,615 quotations), so each fact is traceable to its source.
 - Automatically checked every row and ran a pre-registered human audit (91.1% of judgement fields correct; 95% CI 82.8–95.6%).
 - Published a static site, open data (CC BY 4.0), a two-page methods note and a public log of every judgement call.
 
 ### Release 2 preview bullet (optional; keep the word "preview" until the evaluation is published)
-- Built CiteCheck AU (preview), an in-browser tool that finds the case and statute citations in a document and checks each against 187,443 Australian decisions, 63,282 law-report citations and 13,747 Commonwealth Acts. Party names are stored only as one-way fingerprints, and documents never leave the browser. Its evaluation on a frozen held-out test set is in progress.
+- Built CiteCheck AU (preview), an in-browser tool that finds the case and statute citations in a document and checks each against 187,443 Australian decisions (High Court, Federal Court and NSW, as at 10 March 2025), 63,282 law-report citations and 13,747 Commonwealth Acts. Party names are stored only as one-way fingerprints, and documents never leave the browser. Its evaluation on a frozen held-out test set is in progress.
 
 ## (b) Cover-letter sentence
 
