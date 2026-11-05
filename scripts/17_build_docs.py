@@ -87,7 +87,13 @@ def figures() -> dict:
     f["no_guidance"] = int((rr.instrument == "No specific AI guidance found").sum())
     f["hand_pending"] = int((rr.instrument == "").sum())
     f["agreement"] = json.loads((ROOT / "data/interim/agreement.json").read_text())["party_type"]
-    f["held"] = json.loads((ROOT / "data/stats.json").read_text()).get("rows_with_details_withheld_pending_austlii", 0)
+    stats = json.loads((ROOT / "data/stats.json").read_text())
+    f["held"] = stats.get("rows_with_details_withheld_pending_austlii", 0)
+    f["now"] = stats["by_verification_status"]  # after the human checks (D041, D042)
+    f["full"] = stats["rows_publishing_extracted_fields"]
+    fc = ROOT / "data/review/flag_checks.json"
+    answers = json.loads(fc.read_text()) if fc.exists() else {}
+    f["flag_points"] = sum(len(a["items"]) for a in answers.values())
     f["spend"] = spent()
     t = pd.read_csv(ROOT / "data/interim/tracker_full.csv", dtype=str, keep_default_na=False)
     f["tracker"] = t
@@ -180,13 +186,19 @@ value not tied to a verified quote was discarded by code.</li>
 Result: {st.get('auto_verified', 0)} rows passed every check (<em>auto-verified</em>), {st.get('flagged_for_review', 0)} were flagged,
 {st.get('not_auto_verifiable', 0)} could not be checked automatically and {st.get('no_public_source', 0)} have no public judgment.
 Party type agreed with Charlotin's coding in {ag['percent_agree']}% of {ag['n']} rows (Cohen's kappa {ag['cohen_kappa']}).
-These checks prove that each value rests on real text at the stated paragraph; they cannot prove the text was read correctly.</p>
+These checks prove that each value rests on real text at the stated paragraph; they cannot prove the text was read correctly.
+Each flagged row outside the random sample was then put to the author as one plain question per failed check; the author answered all
+{f['flag_points']} points on {f['now'].get('luc_flags_checked', 0)} rows, and the answers are applied as recorded in the decisions log
+(D041, D042). The tracker now shows {f['now'].get('auto_verified', 0)} rows as auto-verified,
+{f['now'].get('luc_spot_checked', 0)} as checked in the random sample and {f['now'].get('luc_flags_checked', 0)} as flags checked
+by the author.</p>
 
 <h2>6. Human check</h2>
 <p>A random sample of {f['spot_n']} rows was drawn and committed before any extraction (seed {e(str(f['spot_seed']))}, from
 {e(str(f['spot_pop']))} eligible rows, excluding the 10 rows used to develop the prompts), so it could not be chosen to look good. The
-author checks each field against the judgment. {spot} Rows not checked by a person publish only the facts read by script and
-Charlotin's own coding, unless they are auto-verified and were not extracted from an AustLII-printed copy.</p>
+author checks each field against the judgment. {spot} Rows with no public judgment, or one that could not be checked automatically, publish only the facts read by
+script and Charlotin's own coding. While AustLII's reply is pending, the {f['held']} rows extracted from an AustLII-printed copy publish,
+besides those facts, only the fields the author read; {f['full']} rows publish full details.</p>
 
 <h2>7. Rules matrix</h2>
 <p>Each cell is a plain-English summary backed by short quotations with paragraph numbers. A script confirmed that all
