@@ -20,6 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aic import ROOT  # noqa: E402
+from aic.pdfmeta import strip_dates  # noqa: E402
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 LABEL = {  # citation label -> evidence source key
@@ -122,6 +123,7 @@ Luc Taya, Economics (Honours) graduate, University of Western Australia. CC BY 4
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
                     f"--print-to-pdf={out / 'checklist.pdf'}", (out / "checklist.html").as_uri()],
                    check=True, capture_output=True)
+    strip_dates(out / "checklist.pdf")  # no work date in a public PDF (P1-8)
     print(f"wrote {out / 'checklist.html'} and {out / 'checklist.pdf'}")
 
 

@@ -16,6 +16,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aic import ROOT  # noqa: E402
+from aic.pdfmeta import strip_dates  # noqa: E402
 from aic.spend import spent  # noqa: E402
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -283,6 +284,7 @@ def main() -> None:
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
                     f"--print-to-pdf={docs / 'methods.pdf'}", (docs / "methods.html").as_uri()],
                    check=True, capture_output=True)
+    strip_dates(docs / "methods.pdf")  # no work date in a public PDF (P1-8)
     (ROOT / "private").mkdir(exist_ok=True)
     (ROOT / "private/factpack.md").write_text(factpack(f))
     print("wrote docs/methods.html, docs/methods.pdf and private/factpack.md")
