@@ -462,15 +462,15 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
 - **Status:** Luc (answers); Claude (application).
 
 ### D043: Party names moved out of `aic/flags.py` (5 Nov 2026)
-- **Problem:** the privacy scan (`scripts/30_privacy_scan.py`) found three self-represented parties' names in `aic/flags.py`, a public file: two typed titles and one note. They were committed in d9c3bb0 (D042). The public tracker never showed them, because it blanks those titles.
+- **Problem:** the privacy scan (`scripts/30_privacy_scan.py`) found three self-represented parties' names in `aic/flags.py`, a public file: two typed titles and one note. They were committed with D042. The public tracker never showed them, because it blanks those titles.
 - **Fix:** those four fixed values (three titles and AIC-0019's citation fix, whose note names a party) move unchanged to `data/review/flag_fixes_private.json`, which is local and gitignored. `aic/flags.py` merges them back at build time.
   - The rebuilt `data/tracker.csv` and `data/interim/tracker_full.csv` are byte-identical to before.
   - The scan now finds 0 hits in the LUC-CHECKED files.
-- **Still open (Luc decides):** the names remain in the git history (d9c3bb0 and the 11 commits after it, all on GitHub). Removing them needs a history rewrite and a force push.
+- **Still open (Luc decides):** the names remain in the git history (from the commit that applied D042 onwards, all on GitHub). Removing them needs a history rewrite and a force push.
 
 ### D044: CiteCheck offline wording (5 Nov 2026)
 - **Problem:** the page said offline mode would "send nothing anywhere", and D037 and D038 said it "makes no request" and "sent nothing". In fact offline mode still loads the site's own index files (`citecheck/src/loader.ts`). The names of the files requested show which courts, years and report series a document cites, though never the document's text.
-- **Change:** the page says offline mode "contacts no other site" (commit 1240f71). A Playwright test (`citecheck/e2e/`) checks that no request leaves the site's origin. The privacy paragraph now also says what the index requests show. D037 and D038 carry a note pointing here.
+- **Change:** the page says offline mode "contacts no other site" (commit "CiteCheck: offline wording says what offline mode does"). A Playwright test (`citecheck/e2e/`) checks that no request leaves the site's origin. The privacy paragraph now also says what the index requests show. D037 and D038 carry a note pointing here.
 - **Status:** Luc approved the run's approval items, this wording among them ("Approve all.", 5 Nov 2026, relayed by his run-monitor session).
 
 ### D045: Plain labels for how each tracker row was checked (5 Nov 2026)
