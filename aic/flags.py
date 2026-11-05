@@ -15,8 +15,12 @@ import pandas as pd
 from aic import ROOT
 
 CHECKS = ROOT / "data/review/flag_checks.json"
+# Fixed values that contain party names (titles of self-represented parties): kept out of the public repo
+# (PRIVACY.md, D022) in this local, gitignored file, keyed "<tracker id>|<check>". Missing in CI and fresh
+# clones, where flag_checks.json is missing too, so apply() is never reached there.
+PRIVATE_FIXES = ROOT / "data/review/flag_fixes_private.json"
 
-# (tracker id, check) -> tracker values Luc's typed answer sets.
+# (tracker id, check) -> tracker values Luc's typed answer sets. Those naming a party are in PRIVATE_FIXES.
 FIXES: dict[tuple[str, str], dict] = {
     ("AIC-0004", "quotes_have_paragraph_numbers"): {
         "pinpoints": "orders, [1], [5], [6], [17], [18]",
@@ -25,25 +29,15 @@ FIXES: dict[tuple[str, str], dict] = {
     ("AIC-0004", "paragraph_count_matches_court_certificate"): {
         "pinpoints": "orders, [1], [5], [6], [17], [18]",
         "note": "Luc: the judgment has numbered paragraphs; paragraph references restored (as above)."},
-    ("AIC-0019", "mnc_matches_document_header"): {
-        "mnc": "[2025] QIRC 141",
-        "note": "Luc: [2025] QIRC 141, not 121; the quoted findings belong to [AIC-0019: title withheld]."},
     ("AIC-0021", "quotes_have_paragraph_numbers"): {
         "pinpoints": "[19], [20], [21]",
         "note": "Luc: the discussion is at [19]-[21]; aic.docxnum, reading the Word file's own numbering, places "
                 "the quotes in the same paragraphs."},
     ("AIC-0021", "mnc_matches_document_header"): {"mnc": "[2025] VCC 868", "note": "Luc: [2025] VCC 868."},
-    ("AIC-0021", "title_found_in_judgment"): {"title_as_published": "[AIC-0021: title withheld]", "note": "Luc: [AIC-0021: title withheld]."},
     ("AIC-0023", "quotes_have_paragraph_numbers"): {
         "pinpoints": "orders, [4], [8], [10], [14], [15]",
         "note": "Luc: the reasons are in numbered paragraphs; the costs direction and the leave to amend are "
                 "orders. Paragraph numbers from aic.docxnum (the Word file's own numbering)."},
-    ("AIC-0023", "title_found_in_judgment"): {
-        "title_as_published": "Murray on behalf of the Wamba Wemba Native Title Claim Group v State of Victoria",
-        "note": "Luc: title as published."},
-    ("AIC-0077", "title_found_in_judgment"): {
-        "title_as_published": "[AIC-0077: title withheld]",
-        "note": "Luc: title as published."},
     ("AIC-0107", "quotes_have_paragraph_numbers"): {
         "pinpoints": "[1], [2]",
         "note": "Luc: the dismissal is at [1]; the passages on AI use, inadequate checking and misapplied "
@@ -70,6 +64,12 @@ FIELD_OF = {
 @cache
 def _answers() -> dict:
     return json.loads(CHECKS.read_text()) if CHECKS.exists() else {}
+
+
+@cache
+def _fixes() -> dict[tuple[str, str], dict]:
+    private = json.loads(PRIVATE_FIXES.read_text()) if PRIVATE_FIXES.exists() else {}
+    return FIXES | {tuple(k.split("|", 1)): v for k, v in private.items()}
 
 
 @cache
@@ -123,7 +123,7 @@ def apply(row: str, tid: str, fields: dict) -> tuple[dict, dict, set[str]] | Non
             if verdict != "correct":
                 raise ValueError(f"{tid}: correction to a citation's wording not yet a fixed value: {value!r}")
         elif verdict == "corrected":
-            fix = FIXES.get((tid, f.check))
+            fix = _fixes().get((tid, f.check))
             if fix is None:
                 raise ValueError(f"{tid} {f.check}: Luc's note is not yet a fixed value: {value!r}")
             overrides.update({k: v for k, v in fix.items() if k != "note"})

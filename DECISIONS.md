@@ -460,3 +460,10 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
   - A fake-citation list Luc read only in part is not published as his reading, so it stays held back.
   - The site label is "Details held back; parts checked by Luc", and the About page's method text is updated.
 - **Status:** Luc (answers); Claude (application).
+
+### D043: Party names moved out of `aic/flags.py` (5 Nov 2026)
+- **Problem:** the privacy scan (`scripts/30_privacy_scan.py`) found three self-represented parties' names in `aic/flags.py`, a public file: two typed titles and one note. They were committed in d9c3bb0 (D042). The public tracker never showed them, because it blanks those titles.
+- **Fix:** those four fixed values (three titles and AIC-0019's citation fix, whose note names a party) move unchanged to `data/review/flag_fixes_private.json`, which is local and gitignored. `aic/flags.py` merges them back at build time.
+  - The rebuilt `data/tracker.csv` and `data/interim/tracker_full.csv` are byte-identical to before.
+  - The scan now finds 0 hits in the LUC-CHECKED files.
+- **Still open (Luc decides):** the names remain in the git history (d9c3bb0 and the 11 commits after it, all on GitHub). Removing them needs a history rewrite and a force push.

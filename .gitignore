@@ -35,3 +35,4 @@ data/review/decisions_backup_*/
 
 # CiteCheck build output (Vite), including the deployed index files: built locally, never committed (D038)
 site/citecheck/
+data/review/flag_fixes_private.json
