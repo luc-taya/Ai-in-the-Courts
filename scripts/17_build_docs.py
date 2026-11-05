@@ -195,7 +195,7 @@ Each flagged row outside the random sample was then put to the author as one pla
 by the author.</p>
 
 <h2>6. Human check</h2>
-<p>A random sample of {f['spot_n']} rows was drawn and committed before any extraction (seed {e(str(f['spot_seed']))}, from
+<p>A random sample of {f['spot_n']} rows was drawn with a fixed seed before extraction and can be reproduced from the seed (seed {e(str(f['spot_seed']))}, from
 {e(str(f['spot_pop']))} eligible rows, excluding the 10 rows used to develop the prompts), so it could not be chosen to look good. The
 author checks each field against the judgment. {spot} Rows with no public judgment, or one that could not be checked automatically, publish only the facts read by
 script and Charlotin's own coding. While AustLII's reply is pending, the {f['held']} rows extracted from an AustLII-printed copy publish,
@@ -284,7 +284,7 @@ def factpack(f: dict) -> str:
         lines.append(f"- **{r.instrument}** ({r.paragraph_refs}). Consequences: {r.consequences}")
     lines += ["", "## Method facts you can cite",
               f"- {f['quotes']:,} quotations extracted, all matched character for character in the judgment text.",
-              f"- Pre-registered random human check of {f['spot_n']} rows (seed {f['spot_seed']}).",
+              f"- Random human check, drawn with a fixed seed before extraction and reproducible from the seed, of {f['spot_n']} rows (seed {f['spot_seed']}).",
               f"- Total API cost US${f['spend']:.2f}.", ""]
     return "\n".join(lines)
 

@@ -8,7 +8,7 @@ judgment text and the verified quotes. Writes:
       flagged_for_review   at least one check failed
       not_auto_verifiable  no usable text or no extraction (scanned, manual-only source, refusal, ...)
       no_public_source     no free judgment text to verify against
-  data/review/luc_queue.csv             what Luc reviews: the pre-registered random 10, plus every
+  data/review/luc_queue.csv             what Luc reviews: the random 10 (fixed seed), plus every
                                         flagged and not_auto_verifiable row
   data/interim/agreement.json           agreement with Charlotin (percentage and Cohen's kappa)
 """

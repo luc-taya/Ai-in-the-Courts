@@ -1,7 +1,9 @@
 """Draw Luc's 10 random spot-check rows, before any extraction results exist.
 
-Pre-registered: the sample is drawn and committed before Pass A/B run, so it
-cannot be chosen to look good. The population is every row whose judgment has
+The sample is drawn with a fixed seed before Pass A/B run and can be reproduced
+from the seed, so it cannot be chosen to look good. (Nothing was registered with a
+third party, and the squashed history cannot show the order; DECISIONS.md D046.)
+The population is every row whose judgment has
 a text layer (so it can be verified automatically), minus the Pass A
 development sample: prompts may be tuned on those rows, so their accuracy
 would be biased upwards.
@@ -30,7 +32,7 @@ N = 10
 def main() -> None:
     out = ROOT / "data/review/spot_check_sample.csv"
     if out.exists():
-        sys.exit(f"{out} already exists; the pre-registered sample must not be redrawn.")
+        sys.exit(f"{out} already exists; the spot-check sample must not be redrawn.")
     meta = pd.read_csv(ROOT / "data/interim/doc_metadata.csv", dtype=str, keep_default_na=False)
     dev = set(pd.read_csv(ROOT / "data/interim/pass_a/dev_sample.csv", dtype=str).charlotin_row)
     pool = sorted(meta[(meta.scanned != "True") & ~meta.charlotin_row.isin(dev)].charlotin_row, key=int)

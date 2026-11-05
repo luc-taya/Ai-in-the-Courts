@@ -223,7 +223,7 @@ only, and any value without a supporting quote is discarded.</p>
 <p>Every row then goes through automatic checks: the citation matches the judgment's header, titles and impugned citations are copied
 exactly, characterisations have textual support, paragraph counts match the court's own certificate, and the row is compared with
 Charlotin's coding. These checks prove that each value rests on real text at the stated paragraph. They cannot prove the text was
-read correctly, so rows that pass are labelled <em>passed automatic checks</em>, not verified. A random sample of 10 rows, fixed before any extraction, was
+read correctly, so rows that pass are labelled <em>passed automatic checks</em>, not verified. A random sample of 10 rows, drawn with a fixed seed before extraction and reproducible from the seed, was
 checked by hand against the official judgment and labelled <em>spot-checked</em>. Rows the checks flagged were then
 checked by hand on each flagged point and are labelled <em>flags checked by Luc</em>; any new flagged row is labelled
 <em>awaiting review</em> until a person has read it.</p>

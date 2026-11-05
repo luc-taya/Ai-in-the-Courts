@@ -40,7 +40,7 @@ $PY scripts/03_doc_metadata.py             # own MNC, court, pages, scanned?, pr
 $PY scripts/04_pass_a.py estimate          # Pass A: quotes with citations ('submit' needs ANTHROPIC_API_KEY in .env)
 $PY scripts/05_verify_quotes.py            # every quote checked byte-for-byte against the judgment text
 $PY scripts/06_pass_b.py estimate          # Pass B: field proposals from verified quotes only
-$PY scripts/07_spot_check_sample.py        # pre-registered random spot-check sample (run once, before extraction)
+$PY scripts/07_spot_check_sample.py        # random spot-check sample, drawn with a fixed seed before extraction; reproducible from the seed
 $PY scripts/09_public_manifests.py         # name-free hash manifests published instead of name-bearing files
 $PY scripts/08_verify_rows.py              # automatic checks on every row; Luc's review queue
 $PY scripts/10_fetch_rules.py              # official AI practice notes and directions (robots-checked, 1 request / 5 s)
@@ -79,7 +79,7 @@ Judgment files are cached in `cache/` and never committed. Anthropic API keys li
 This project was built with Claude Code (Anthropic), an AI coding assistant, and that use is disclosed here in full.
 
 - **Built by Claude (AI), directed and reviewed by Luc Taya:** the data pipeline scripts, the review page, the site code, CiteCheck AU (parser, matcher, index builds and page), and first drafts of the rules matrix cells and the checklist. The first-pass extraction of fields from judgments uses Claude models through the Anthropic API. Every such field records the verbatim quote it rests on.
-- **Done by Luc Taya:** the project design and scope; deciding each judgement call in [DECISIONS.md](DECISIONS.md) (many are first proposed by Claude, and each entry shows whether Luc has approved it); spot-checking 10 pre-registered random tracker rows against the official judgments (marked `luc_spot_checked`; rows that pass every automatic check but were not reviewed by Luc are marked `auto_verified`); reading the fake citations in held-back rows against the judgments (DECISIONS.md D034, D035); answering every point the automatic checks raised on the flagged rows (D041, D042); checking the rules matrix against the official instruments; editing the checklist; and approving each release.
+- **Done by Luc Taya:** the project design and scope; deciding each judgement call in [DECISIONS.md](DECISIONS.md) (many are first proposed by Claude, and each entry shows whether Luc has approved it); spot-checking 10 random tracker rows (drawn with a fixed seed before extraction; reproducible from the seed) against the official judgments (marked `luc_spot_checked`; rows that pass every automatic check but were not reviewed by Luc are marked `auto_verified`); reading the fake citations in held-back rows against the judgments (DECISIONS.md D034, D035); answering every point the automatic checks raised on the flagged rows (D041, D042); checking the rules matrix against the official instruments; editing the checklist; and approving each release.
 - No figure in any output is typed by hand. Each is produced by a committed script from the data.
 
 ## About

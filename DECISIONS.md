@@ -477,3 +477,8 @@ Every judgement call, with the options considered. **Status: proposed** means Cl
 - **Problem:** the site called rows that pass every automatic check "auto-verified" (D016), and the home page printed raw status values ("auto verified 57, luc flags checked 37 ..."). The automatic checks show only that each value rests on a quote at the stated paragraph. In Luc's random spot-check, 4 of 10 rows had every judgement field right (methods note, section 6), so "verified" claims more than the checks show.
 - **Change:** the site and methods note now say "passed automatic checks", "flags checked by Luc", "spot-checked by Luc", "awaiting review", "not checkable automatically" and "no public source" (`STATUS_LABEL` in `scripts/15_build_site.py`). The `verification_status` values in `tracker.csv` are unchanged, so the data and its users are not affected.
 - **Status:** made on Luc's instruction to do the run's text fixes (LUC-TODO P1-12, relayed by his run-monitor session); Luc may revert it.
+
+### D046: "Pre-registered" replaced in current text (5 Nov 2026)
+- **Problem:** the spot-check sample was called "pre-registered" (README, CV entry, methods note, About page, script docstrings). It does re-derive exactly from its seed, but nothing was registered with a third party, and the history was squashed (D022), so git cannot show that the sample came before the extraction.
+- **Change:** current text now says it was "drawn with a fixed seed before extraction; reproducible from the seed". Earlier entries in this log (D016, D025 and others) are dated records and keep their wording.
+- **Status:** approved by Luc ("Yes, send them", 5 Nov 2026, relayed by his run-monitor session; LUC-TODO P1-9).
