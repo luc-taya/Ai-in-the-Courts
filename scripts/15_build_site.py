@@ -62,6 +62,11 @@ footer.site .in { padding-top:16px; padding-bottom:24px; }
 """
 
 
+# Plain labels for the verification_status values (data values unchanged; D016, D045).
+STATUS_LABEL = {"auto_verified": "passed automatic checks", "luc_flags_checked": "flags checked by Luc",
+                "luc_spot_checked": "spot-checked by Luc", "flagged_for_review": "awaiting review",
+                "not_auto_verifiable": "not checkable automatically", "no_public_source": "no public source"}
+
 def page(title: str, body: str, *, noindex: bool = False, description: str = "") -> str:
     robots = '<meta name="robots" content="noindex">' if noindex else ""
     return f"""<!doctype html>
@@ -129,8 +134,8 @@ checked; rows not yet checked show only facts read from the judgment and Charlot
     <div class="muted">HTML and A4 PDF</div><a href="/checklist.html">Open the checklist</a></div>
 </div>
 <h2>Download the data</h2>
-<p><a href="/downloads/tracker.csv">tracker.csv</a> · <a href="/downloads/rules.csv">rules.csv</a> (CC BY 4.0). Verification
-status of the {n_rows} rows: {", ".join(f"{esc(k).replace('_', ' ')} {v}" for k, v in by_status.items())}.</p>
+<p><a href="/downloads/tracker.csv">tracker.csv</a> · <a href="/downloads/rules.csv">rules.csv</a> (CC BY 4.0). How the
+{n_rows} rows were checked: {", ".join(f"{esc(STATUS_LABEL.get(k, k))} {v}" for k, v in by_status.items())}.</p>
 """
     (SITE / "index.html").write_text(page("AI in Australian Courts", index,
                                           description="Open data on generative AI errors in Australian courts, court AI rules and a citation checklist."))
@@ -146,17 +151,17 @@ Filter by court, year, party type or consequence. There is deliberately no name 
   <label>Year<select id="f-year"><option value="">All</option>{"".join(f"<option>{esc(y)}</option>" for y in years)}</select></label>
   <label>Party type<select id="f-party"><option value="">All</option><option value="lawyer">Lawyer</option><option value="self_represented">Self-represented</option><option value="expert">Expert</option><option value="other">Other</option></select></label>
   <label>Consequence<select id="f-cons"><option value="">All</option><option>personal_costs_order</option><option>adverse_costs_order</option><option>regulator_referral</option><option>submissions_disregarded</option><option>warning_or_admonishment</option><option>application_or_appeal_dismissed</option><option>leave_refused</option><option>no_consequence_stated</option></select></label>
-  <label>Checked<select id="f-status"><option value="">All</option><option value="luc_spot_checked">Spot-checked by Luc</option><option value="auto_verified">Auto-verified</option><option value="luc_flags_checked">Flags checked by Luc</option><option value="flagged_for_review">Awaiting review</option><option value="not_auto_verifiable">Not yet verified</option><option value="no_public_source">No public source</option></select></label>
+  <label>Checked<select id="f-status"><option value="">All</option><option value="luc_spot_checked">Spot-checked by Luc</option><option value="auto_verified">Passed automatic checks</option><option value="luc_flags_checked">Flags checked by Luc</option><option value="flagged_for_review">Awaiting review</option><option value="not_auto_verifiable">Not checkable automatically</option><option value="no_public_source">No public source</option></select></label>
 </div>
 <p class="muted" id="count"></p>
 <div class="tablewrap"><table><thead><tr><th>ID</th><th>Decision</th><th>Court</th><th>Date</th><th>Party</th><th>Error types</th><th>Consequence</th><th>Checked</th></tr></thead><tbody id="rows"></tbody></table></div>
 <p class="muted">Self-represented parties' case titles are withheld here; each decision's medium neutral citation identifies
-it on the court's or publisher's site. "Auto-verified": every value rests on a quote found in the judgment text at the stated
+it on the court's or publisher's site. "Passed automatic checks": every value rests on a quote found in the judgment text at the stated
 paragraph; it has not been reviewed by a person. <a href="/about.html#method">How rows are checked</a>.</p>
 <script>
 const PARTY = {{"Pro Se Litigant":"self_represented","Lawyer":"lawyer","Expert":"expert","Judge":"other"}};
-const LABEL = {{luc_spot_checked:"Spot-checked", auto_verified:"Auto-verified", luc_flags_checked:"Flags checked by Luc", flagged_for_review:"Awaiting review",
-  not_auto_verifiable:"Not yet verified", no_public_source:"No public source"}};
+const LABEL = {{luc_spot_checked:"Spot-checked", auto_verified:"Passed automatic checks", luc_flags_checked:"Flags checked by Luc", flagged_for_review:"Awaiting review",
+  not_auto_verifiable:"Not checkable automatically", no_public_source:"No public source"}};
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}}[c]));
 let data = [];
 fetch("/downloads/tracker.json").then(r => r.json()).then(d => {{ data = d; draw(); }});
@@ -218,7 +223,7 @@ only, and any value without a supporting quote is discarded.</p>
 <p>Every row then goes through automatic checks: the citation matches the judgment's header, titles and impugned citations are copied
 exactly, characterisations have textual support, paragraph counts match the court's own certificate, and the row is compared with
 Charlotin's coding. These checks prove that each value rests on real text at the stated paragraph. They cannot prove the text was
-read correctly, so rows that pass are labelled <em>auto-verified</em>. A random sample of 10 rows, fixed before any extraction, was
+read correctly, so rows that pass are labelled <em>passed automatic checks</em>, not verified. A random sample of 10 rows, fixed before any extraction, was
 checked by hand against the official judgment and labelled <em>spot-checked</em>. Rows the checks flagged were then
 checked by hand on each flagged point and are labelled <em>flags checked by Luc</em>; any new flagged row is labelled
 <em>awaiting review</em> until a person has read it.</p>

@@ -184,13 +184,13 @@ value not tied to a verified quote was discarded by code.</li>
 <li>paragraph counts match the court's own certificate;</li>
 <li>party type and referral are compared with Charlotin's coding.</li>
 </ul>
-Result: {st.get('auto_verified', 0)} rows passed every check (<em>auto-verified</em>), {st.get('flagged_for_review', 0)} were flagged,
+Result: {st.get('auto_verified', 0)} rows passed every check (labelled <em>passed automatic checks</em>; the data value is <code>auto_verified</code>), {st.get('flagged_for_review', 0)} were flagged,
 {st.get('not_auto_verifiable', 0)} could not be checked automatically and {st.get('no_public_source', 0)} have no public judgment.
 Party type agreed with Charlotin's coding in {ag['percent_agree']}% of {ag['n']} rows (Cohen's kappa {ag['cohen_kappa']}).
 These checks prove that each value rests on real text at the stated paragraph; they cannot prove the text was read correctly.
 Each flagged row outside the random sample was then put to the author as one plain question per failed check; the author answered all
 {f['flag_points']} points on {f['now'].get('luc_flags_checked', 0)} rows, and the answers are applied as recorded in the decisions log
-(D041, D042). The tracker now shows {f['now'].get('auto_verified', 0)} rows as auto-verified,
+(D041, D042). The tracker now shows {f['now'].get('auto_verified', 0)} rows as passing the automatic checks,
 {f['now'].get('luc_spot_checked', 0)} as checked in the random sample and {f['now'].get('luc_flags_checked', 0)} as flags checked
 by the author.</p>
 
