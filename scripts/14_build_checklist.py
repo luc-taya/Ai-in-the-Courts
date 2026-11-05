@@ -16,6 +16,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -120,9 +121,13 @@ Luc Taya, Economics (Honours) graduate, University of Western Australia. CC BY 4
     out = ROOT / "site"
     out.mkdir(exist_ok=True)
     (out / "checklist.html").write_text(page)
-    subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
-                    f"--print-to-pdf={out / 'checklist.pdf'}", (out / "checklist.html").as_uri()],
-                   check=True, capture_output=True)
+    (out / "checklist.pdf").unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory() as profile:  # own profile: works while Chrome is open
+        r = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", f"--user-data-dir={profile}",
+                            f"--print-to-pdf={out / 'checklist.pdf'}", (out / "checklist.html").as_uri()],
+                           capture_output=True)
+    if not (out / "checklist.pdf").exists():  # Chrome can exit non-zero after writing the PDF, so check the file instead
+        raise SystemExit(f"Chrome wrote no PDF: {r.stderr.decode()[-500:]}")
     strip_dates(out / "checklist.pdf")  # no work date in a public PDF (P1-8)
     print(f"wrote {out / 'checklist.html'} and {out / 'checklist.pdf'}")
 

@@ -10,6 +10,7 @@ import html
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -293,9 +294,13 @@ def main() -> None:
     docs = ROOT / "docs"
     docs.mkdir(exist_ok=True)
     (docs / "methods.html").write_text(methods_html(f))
-    subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
-                    f"--print-to-pdf={docs / 'methods.pdf'}", (docs / "methods.html").as_uri()],
-                   check=True, capture_output=True)
+    (docs / "methods.pdf").unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory() as profile:  # own profile: works while Chrome is open
+        r = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer", f"--user-data-dir={profile}",
+                            f"--print-to-pdf={docs / 'methods.pdf'}", (docs / "methods.html").as_uri()],
+                           capture_output=True)
+    if not (docs / "methods.pdf").exists():  # Chrome can exit non-zero after writing the PDF, so check the file instead
+        raise SystemExit(f"Chrome wrote no PDF: {r.stderr.decode()[-500:]}")
     strip_dates(docs / "methods.pdf")  # no work date in a public PDF (P1-8)
     (ROOT / "private").mkdir(exist_ok=True)
     (ROOT / "private/factpack.md").write_text(factpack(f))
