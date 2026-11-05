@@ -40,7 +40,7 @@ cue; and that party type and referral agree with Charlotin's coding (D016). It d
 spot-check shows the gap: 4 of 10 rows had every judgement field right, and the errors were omissions and over-calls,
 such as "submissions_disregarded" and "found_by_court" where the court had only suspected AI use (D025). Those patterns
 bear on the auto-verified rows, which no person has read (D025). The checks also compare against the copy held, usually
-an AustLII print rather than the authorised version (D016), and most auto-verified rows are held back for now (D042).
+an AustLII print rather than the authorised version (D016), and most auto-verified rows are held back for now (D042). For that reason the site no longer calls these rows "auto-verified": it says they "passed automatic checks" (D045).
 
 ### The spot-check sample was fixed by seed before extraction, but the git history was squashed. What does that prove?
 Less than the phrase suggests. The sample is drawn by a committed script from a fixed seed (20261031) and the list of
