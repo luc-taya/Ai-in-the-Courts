@@ -9,7 +9,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "node node_modules/vite/bin/vite.js",
+    "dev": "node node_modules/vite/bin/vite.js --config e2e/dev-server.config.ts --host 127.0.0.1",
     "build": "node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build && node scripts/remove_sync_copies.ts",
     "test": "node node_modules/vitest/vitest.mjs run",
     "lint": "node node_modules/eslint/bin/eslint.js .",
