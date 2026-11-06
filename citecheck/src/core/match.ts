@@ -265,12 +265,25 @@ export class Checker {
       return !set?.has(baseSection(p.section));
     });
     const where = (p: { schedule?: string; section: string }) => (p.schedule ? `sch ${p.schedule} s ${p.section}` : `s ${p.section}`);
+    // D047: the version in force has no compiled text yet, so the latest compiled version was read instead. Say so.
+    const fallback = list.uncompiledFrom;
+    if (fallback) {
+      notes.push(`The version in force from ${fallback} has no compiled text on the Federal Register yet, so sections were ` +
+        `checked against the latest compiled version (compilation ${list.registerId}, in force from ${list.start}). ` +
+        `Amendments in force from ${fallback} are not reflected.`);
+    }
     if (missing.length) {
-      return this.result(s, "NO_RECORD", `${act.n} as in force on ${this.settings.asAt} (compilation ${list.registerId}) ` +
-        `has no ${missing.map(where).join(", ")}. It may have been repealed or renumbered: check the version for the relevant date.`,
+      return this.result(s, "NO_RECORD", fallback
+        ? `${act.n} in its latest compiled version (compilation ${list.registerId}) has no ${missing.map(where).join(", ")}. ` +
+          "It may have been repealed or renumbered, or inserted by an amendment not yet compiled: check the version for the " +
+          "relevant date."
+        : `${act.n} as in force on ${this.settings.asAt} (compilation ${list.registerId}) ` +
+          `has no ${missing.map(where).join(", ")}. It may have been repealed or renumbered: check the version for the relevant date.`,
         { record, links, notes });
     }
-    return this.result(s, "FOUND", `${act.n} as in force on ${this.settings.asAt} has ${s.provisions.map(where).join(", ")}.`,
+    return this.result(s, "FOUND", fallback
+      ? `${act.n} in its latest compiled version (compilation ${list.registerId}) has ${s.provisions.map(where).join(", ")}.`
+      : `${act.n} as in force on ${this.settings.asAt} has ${s.provisions.map(where).join(", ")}.`,
       { record, links, notes });
   }
 

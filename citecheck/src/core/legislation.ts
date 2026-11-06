@@ -1,10 +1,13 @@
 /**
  * Section lists for Commonwealth Acts, from the Federal Register of Legislation API.
  *
- * What leaves the browser: the Act's register id and today's date (to find the version in
- * force), then a request for that version's EPUB. No document text, citation or party name
- * is sent. The EPUB's table of contents (OEBPS/document.ncx) lists every section, including
- * those in schedules, so a section is checked by looking for its number there.
+ * What leaves the browser: the Act's register id and a date, then a request for one
+ * compilation's EPUB. The date is today's, to find the version in force. When an amendment
+ * has commenced but its compilation is not yet published, that version has no register id
+ * (no text); the date of the day before it began is then sent instead, to find the latest
+ * compiled version (DECISIONS.md D047). No document text, citation or party name is sent.
+ * The EPUB's table of contents (OEBPS/document.ncx) lists every section, including those in
+ * schedules, so a section is checked by looking for its number there.
  */
 import { readZipEntry } from "./zip.ts";
 
@@ -15,6 +18,11 @@ export interface SectionList {
   registerId: string;
   /** Date the version came into force. */
   start: string;
+  /**
+   * Set when the version in force on the date asked has no compiled text yet: the date from which the uncompiled
+   * versions apply. The sections are then those of the latest compiled version before that date.
+   */
+  uncompiledFrom?: string;
   /** Section numbers in the body of the Act. */
   body: Set<string>;
   /** Section numbers in each schedule, by schedule number ("2" -> {"18", ...}). */
@@ -75,18 +83,43 @@ export function fetchSections(titleId: string, asAt: string, fetchFn: typeof fet
   return cache.get(key)!;
 }
 
+/**
+ * How many earlier versions to try when the version in force has no compiled text yet. One is the usual case (an
+ * amendment has commenced and its compilation is being prepared); the limit keeps the requests bounded.
+ */
+export const MAX_UNCOMPILED_STEPS = 3;
+
+/** The day before an ISO date (YYYY-MM-DD). */
+function dayBefore(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 async function load(titleId: string, asAt: string, fetchFn: typeof fetch): Promise<SectionList | null> {
-  const version = await call(fetchFn, `${API}/versions/find(titleid='${encodeURIComponent(titleId)}',asat=${asAt})`,
-    async (r) => (await r.json()) as { registerId?: string; start?: string });
-  if (!version?.registerId) return null;
-  const epub = await call(fetchFn, `${API}/documents/find(registerId='${encodeURIComponent(version.registerId)}',` +
-    "type='Primary',format='Epub',uniqueTypeNumber=0,volumeNumber=0,rectificationVersionNumber=0)",
-    async (r) => new Uint8Array(await r.arrayBuffer()));
-  if (!epub) return null;
-  const ncx = await readZipEntry(epub, "document.ncx");
-  if (!ncx) return null;
-  return { registerId: version.registerId, start: (version.start ?? "").slice(0, 10),
-    ...sectionsFromNcx(new TextDecoder().decode(ncx)) };
+  let at = asAt;
+  let uncompiledFrom: string | undefined;
+  for (let step = 0; step <= MAX_UNCOMPILED_STEPS; step++) {
+    const version = await call(fetchFn, `${API}/versions/find(titleid='${encodeURIComponent(titleId)}',asat=${at})`,
+      async (r) => (await r.json()) as { registerId?: string | null; start?: string });
+    if (!version) return null;
+    const start = (version.start ?? "").slice(0, 10);
+    if (version.registerId) {
+      const epub = await call(fetchFn, `${API}/documents/find(registerId='${encodeURIComponent(version.registerId)}',` +
+        "type='Primary',format='Epub',uniqueTypeNumber=0,volumeNumber=0,rectificationVersionNumber=0)",
+        async (r) => new Uint8Array(await r.arrayBuffer()));
+      if (!epub) return null;
+      const ncx = await readZipEntry(epub, "document.ncx");
+      if (!ncx) return null;
+      return { registerId: version.registerId, start, ...(uncompiledFrom ? { uncompiledFrom } : {}),
+        ...sectionsFromNcx(new TextDecoder().decode(ncx)) };
+    }
+    // This version has commenced but has no compiled text yet: try the version in force the day before it began.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || start > at) return null;
+    uncompiledFrom = start;
+    at = dayBefore(start);
+  }
+  return null;
 }
 
 /**

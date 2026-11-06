@@ -227,6 +227,60 @@ describe("Commonwealth Acts", () => {
     expect(requests.every((u) => u.startsWith("https://api.prod.legislation.gov.au/v1/"))).toBe(true);
     expect(requests.join(" ")).not.toMatch(/180|Corporations/);
   });
+
+  describe("when the version in force has no compiled text yet (D047)", () => {
+    // As seen on 5 Nov 2026: the version in force from 27 Oct 2026 had no register id; compilation C2026C00405 was the
+    // latest with text. Every date from 27 Oct on answers with the uncompiled version.
+    const seen: string[] = [];
+    const uncompiled = (async (url: string) => {
+      seen.push(url);
+      const at = /asat=([\d-]+)/.exec(url)?.[1];
+      if (at) {
+        return new Response(JSON.stringify(at >= "2026-10-27"
+          ? { registerId: null, start: "2026-10-27T00:00:00" }
+          : { registerId: "C2026C00405", start: "2026-09-16T00:00:00" }));
+      }
+      if (url.includes("/documents/find") && url.includes("C2026C00405")) {
+        return new Response(new Blob([storedZip("OEBPS/document.ncx", NCX) as BlobPart]));
+      }
+      return new Response("", { status: 404 });
+    }) as unknown as typeof fetch;
+    const over = { asAt: "2026-11-05", fetchFn: uncompiled };
+
+    it("checks the latest compiled version and says which", async () => {
+      const r = await check("Competition and Consumer Act 2010 (Cth) s 45", over);
+      expect(r.state).toBe("FOUND");
+      expect(r.reason).toMatch(/latest compiled version \(compilation C2026C00405\) has s 45/);
+      expect(r.notes.join(" ")).toMatch(/in force from 2026-10-27 has no compiled text.*in force from 2026-09-16/);
+    });
+    it("NO_RECORD for a missing section, naming a not-yet-compiled amendment as a possible reason", async () => {
+      const r = await check("Competition and Consumer Act 2010 (Cth) s 9999", over);
+      expect(r.state).toBe("NO_RECORD");
+      expect(r.reason).toMatch(/inserted by an amendment not yet compiled/);
+    });
+    it("sends only the register id and dates, then asks for the compilation's text", async () => {
+      seen.length = 0;
+      await check("Corporations Act 2001 (Cth) s 180", { asAt: "2026-11-07", fetchFn: uncompiled });
+      expect(seen.filter((u) => u.includes("/versions/find")).map((u) => /asat=([\d-]+)/.exec(u)?.[1]))
+        .toEqual(["2026-11-07", "2026-10-26"]);
+      expect(seen.some((u) => u.includes("/documents/find") && u.includes("C2026C00405"))).toBe(true);
+      expect(seen.every((u) => u.startsWith("https://api.prod.legislation.gov.au/v1/"))).toBe(true);
+      expect(seen.join(" ")).not.toMatch(/180|Corporations/);
+    });
+    it("gives up after a few steps back and says the sections were not checked", async () => {
+      const asked: string[] = [];
+      const neverCompiled = (async (url: string) => {
+        const at = /asat=([\d-]+)/.exec(url)?.[1];
+        if (!at) return new Response("", { status: 404 });
+        asked.push(at);
+        return new Response(JSON.stringify({ registerId: null, start: `${at}T00:00:00` }));
+      }) as unknown as typeof fetch;
+      const r = await check("Competition and Consumer Act 2010 (Cth) s 45", { asAt: "2026-12-01", fetchFn: neverCompiled });
+      expect(r.state).toBe("FOUND");
+      expect(r.reason).toMatch(/current text could not be read/);
+      expect(asked).toEqual(["2026-12-01", "2026-11-30", "2026-11-29", "2026-11-28"]);
+    });
+  });
 });
 
 describe("state Acts", () => {

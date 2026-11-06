@@ -48,6 +48,18 @@ describe("fetchSections when the Federal Register is down", () => {
     await expect(fetchSections(ACT_ID, "2031-01-04", answering(404))).resolves.toBeNull();
   });
 
+  it("reports an outage on the step back to the latest compiled version (D047)", async () => {
+    let calls = 0;
+    const flaky = (async () => {
+      calls++;
+      return calls === 1
+        ? new Response(JSON.stringify({ registerId: null, start: "2031-03-01T00:00:00" }))
+        : new Response("", { status: 503 });
+    }) as unknown as typeof fetch;
+    await expect(fetchSections(ACT_ID, "2031-03-05", flaky)).rejects.toBeInstanceOf(RegisterUnavailable);
+    expect(calls).toBe(2);
+  });
+
   it("does not remember an outage: the next check asks again", async () => {
     let calls = 0;
     const down = (async () => {
