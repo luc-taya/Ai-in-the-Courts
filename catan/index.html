@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Island Settlers</title>
+<style>
+:root{--bg:#14202a;--panel:#1f2f3b;--panel2:#263a48;--ink:#f3efe6;--muted:#9fb2bd;--accent:#f0b429;--bad:#e5484d;--ward:#38bdf8}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;padding:10px 14px;background:#0e171f}
+header h1{margin:0;font-size:18px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;padding:12px;max-width:1400px;margin:0 auto}
+@media (max-width:920px){main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border-radius:12px;padding:12px;min-width:0}
+h2{font-size:13px;margin:0 0 8px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+button{background:var(--panel2);color:var(--ink);border:1px solid #3c5566;border-radius:8px;padding:7px 11px;cursor:pointer;font:inherit}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--accent);color:#1b1404;border-color:var(--accent);font-weight:600}
+select,label select{background:var(--panel2);color:var(--ink);border:1px solid #3c5566;border-radius:8px;padding:6px;font:inherit}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.muted{color:var(--muted)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:999px;background:#0e3b52;color:var(--ward);margin-left:4px}
+.res{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;background:var(--panel2)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+#board{width:100%;height:auto;display:block;border-radius:12px;background:#1c6ea4;max-height:72vh}
+.banner{padding:8px 10px;border-radius:8px;background:#3a2f10;color:#ffe9a8;margin-bottom:8px}
+.player{padding:8px;border-radius:10px;background:var(--panel2);margin-bottom:6px}
+.player.turn{outline:2px solid var(--accent)}
+.log{height:300px;overflow:auto;font-size:12.5px;line-height:1.4}
+.log div{padding:2px 0;border-bottom:1px solid #2c4150}
+.dice{font-size:28px;font-weight:800}
+.die{display:inline-block;width:40px;height:40px;line-height:40px;text-align:center;background:#fff;color:#111;border-radius:8px;margin-left:6px}
+.card{display:flex;flex-direction:column;gap:4px;align-items:flex-start;background:#2f4a5b;border-radius:10px;padding:8px;min-width:160px;max-width:200px}
+.card small{color:var(--muted)}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:10;padding:14px}
+.overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:14px;padding:18px;max-width:440px;width:100%}
+.hit{fill:transparent;cursor:pointer}
+.valid{fill:rgba(240,180,41,.35);stroke:var(--accent);stroke-width:2}
+.hexhl{fill:none;stroke:var(--accent);stroke-width:4;stroke-dasharray:6 4}
+.robber{fill:#111;stroke:#fff;stroke-width:2}
+.tok{fill:#fbf6e9;stroke:#5b4a2a;stroke-width:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏝️ Island Settlers</h1>
+  <div class="row">
+    <label class="muted">Players
+      <select id="pc"><option value="3">3 (you + 2 bots)</option><option value="4" selected>4 (you + 3 bots)</option></select>
+    </label>
+    <label class="muted">Bot speed
+      <select id="speed"><option value="900">Slow</option><option value="450" selected>Normal</option><option value="150">Fast</option></select>
+    </label>
+    <button data-act="new" class="primary">New game</button>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <div id="status"></div>
+      <div id="dice" class="dice"></div>
+    </div>
+    <div id="banner"></div>
+    <svg id="board" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="row" id="actions" style="margin-top:10px"></div>
+    <div id="hand"></div>
+  </section>
+
+  <aside>
+    <section class="panel"><h2>Players</h2><div id="players"></div></section>
+    <section class="panel" style="margin-top:12px"><h2>Bank trade</h2><div id="trade"></div></section>
+    <section class="panel" style="margin-top:12px"><h2>Log</h2><div class="log" id="log"></div></section>
+  </aside>
+</main>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+'use strict';
+/* =========================================================
+   CONFIG — tweak here. Everything else reads from this.
+   ========================================================= */
+const CONFIG = {
+  targetVP: 10,
+  piecesPer: { road: 15, settlement: 5, city: 4 },
+  // tile types: 4 wood, 3 brick, 4 wool, 4 grain, 3 ore, 1 desert = 19 hexes (radius-2 board)
+  tileCounts: { wood: 4, brick: 3, sheep: 4, wheat: 4, ore: 3, desert: 1 },
+  numberTokens: [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12],
+  bankPerResource: 19,
+  robberDiscardLimit: 7,
+  longestRoadMin: 5,
+  largestArmyMin: 3,
+  maxBotTradesPerTurn: 3,
+  hexSize: 50,
+  // development deck. ward / pickpocket / blessing are the NEW cards.
+  devDeck: { knight: 14, vp: 5, road: 2, yop: 2, mono: 2, ward: 2, pickpocket: 2, blessing: 2 }
+};
+
+const RES = ['wood', 'brick', 'sheep', 'wheat', 'ore'];
+const RNAME = { wood: 'Lumber', brick: 'Brick', sheep: 'Wool', wheat: 'Grain', ore: 'Ore', desert: 'Desert' };
+const RCOL = { wood: '#2e7d32', brick: '#b8512b', sheep: '#a8d672', wheat: '#f2c94c', ore: '#9aa9b3', desert: '#e5d3a0' };
+const COST = {
+  road: { wood: 1, brick: 1 },
+  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1 },
+  city: { wheat: 2, ore: 3 },
+  dev: { sheep: 1, wheat: 1, ore: 1 }
+};
+const DEV = {
+  knight:     { name: 'Knight', anytime: false, desc: 'Move the robber and steal 1 card. Counts toward Largest Army.' },
+  vp:         { name: 'Victory Point', anytime: false, desc: '+1 VP. Hidden until you win.' },
+  road:       { name: 'Road Building', anytime: false, desc: 'Build 2 roads for free.' },
+  yop:        { name: 'Year of Plenty', anytime: false, desc: 'Take any 2 resources from the bank.' },
+  mono:       { name: 'Monopoly', anytime: false, desc: 'Take all of one resource from every other player.' },
+  ward:       { name: 'Ward', anytime: true, desc: 'NEW. Any time, even on others\' turns. You are immune to the next 7-roll discard. One use.' },
+  pickpocket: { name: 'Pickpocket', anytime: true, desc: 'NEW. Any time. Steal 1 random card from an opponent you choose.' },
+  blessing:   { name: 'Blessing of the Harvest', anytime: false, desc: 'NEW. On your turn, name a number (2-12, not 7). The next time it is rolled you collect +1 resource per building you have on those tiles.' }
+};
+const PIPS = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
+const NEIGH = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+const PCOL = ['#3b82f6', '#ef4444', '#e5e7eb', '#f97316'];
+const PNAME = ['You', 'Bot Alpha', 'Bot Beta', 'Bot Gamma'];
+const H = 0;            // human player id
+let FORCE_BOTS = false; // test hook: lets bot logic drive every seat
+
+let G = null;
+const UI = { buildMode: null, discardSel: {}, give: 'ore', recv: 'brick', timer: null };
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random() * n);
+const d6 = () => rnd(6) + 1;
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const sumRes = p => RES.reduce((s, r) => s + p.res[r], 0);
+const cnt = (pid, kind) => G.board.vertices.filter(v => v.owner === pid && v.building === kind).length;
+const roadCount = pid => G.board.edges.filter(e => e.owner === pid).length;
+const can = (p, cost) => Object.entries(cost).every(([r, n]) => p.res[r] >= n);
+function pay(p, cost) { for (const [r, n] of Object.entries(cost)) { p.res[r] -= n; G.bank[r] += n; } }
+function log(m) { G.log.push(m); if (G.log.length > 400) G.log.shift(); }
+const nm = pid => G.players[pid].name;
+const otherEnd = (e, v) => { const ed = G.board.edges[e]; return ed.a === v ? ed.b : ed.a; };
+function pickBest(iter, fn) {
+  let best, bs = -Infinity;
+  for (const x of iter) { const s = fn(x) + Math.random() * 0.01; if (s > bs) { bs = s; best = x; } }
+  return best;
+}
+
+/* ---------- board generation ---------- */
+function makeBoard() {
+  const S = CONFIG.hexSize, SQ3 = Math.sqrt(3), R = 2;
+  const types = [];
+  for (const [t, n] of Object.entries(CONFIG.tileCounts)) for (let i = 0; i < n; i++) types.push(t);
+  shuffle(types);
+
+  const hexes = [], at = new Map();
+  for (let r = -R; r <= R; r++) for (let q = -R; q <= R; q++) {
+    if (Math.abs(q + r) > R) continue;
+    const id = hexes.length, type = types[id];
+    const h = { id, q, r, x: S * SQ3 * (q + r / 2), y: S * 1.5 * r, type, res: type === 'desert' ? null : type, num: null, vertices: [] };
+    hexes.push(h); at.set(q + ',' + r, h);
+  }
+  const nbrs = h => NEIGH.map(([dq, dr]) => at.get((h.q + dq) + ',' + (h.r + dr))).filter(Boolean);
+  const land = hexes.filter(h => h.res);
+  for (let tries = 0; tries < 5000; tries++) {                 // no 6/8 touching each other
+    const toks = shuffle([...CONFIG.numberTokens]);
+    land.forEach((h, i) => { h.num = toks[i]; });
+    const bad = land.some(h => (h.num === 6 || h.num === 8) && nbrs(h).some(n => n.num === 6 || n.num === 8));
+    if (!bad) break;
+  }
+
+  const vertices = [], vmap = new Map(), edges = [], emap = new Map();
+  const vid = (x, y) => {
+    const k = Math.round(x * 1000) + ',' + Math.round(y * 1000);
+    if (!vmap.has(k)) {
+      vmap.set(k, vertices.length);
+      vertices.push({ id: vertices.length, x, y, hexes: [], edges: [], adj: [], owner: null, building: null, port: null });
+    }
+    return vmap.get(k);
+  };
+  for (const h of hexes) {
+    const ids = [];
+    for (let k = 0; k < 6; k++) {
+      const a = (60 * k + 30) * Math.PI / 180;
+      const v = vid(h.x + S * Math.cos(a), h.y + S * Math.sin(a));
+      ids.push(v);
+      if (!vertices[v].hexes.includes(h.id)) vertices[v].hexes.push(h.id);
+    }
+    h.vertices = ids;
+    for (let k = 0; k < 6; k++) {
+      const a = ids[k], b = ids[(k + 1) % 6], lo = Math.min(a, b), hi = Math.max(a, b), key = lo + '-' + hi;
+      if (!emap.has(key)) {
+        const e = { id: edges.length, a: lo, b: hi, owner: null, hexes: [], port: null };
+        emap.set(key, e.id); edges.push(e);
+        vertices[lo].edges.push(e.id); vertices[hi].edges.push(e.id);
+        vertices[lo].adj.push(hi); vertices[hi].adj.push(lo);
+      }
+      edges[emap.get(key)].hexes.push(h.id);
+    }
+  }
+
+  // ports: 9 evenly spaced coastal edges (4 generic 3:1, 5 specific 2:1)
+  const mid = e => ({ x: (vertices[e.a].x + vertices[e.b].x) / 2, y: (vertices[e.a].y + vertices[e.b].y) / 2 });
+  const outer = edges.filter(e => e.hexes.length === 1).sort((p, q) => {
+    const A = mid(p), B = mid(q); return Math.atan2(A.y, A.x) - Math.atan2(B.y, B.x);
+  });
+  const ptypes = shuffle(['any', 'any', 'any', 'any', 'wood', 'brick', 'sheep', 'wheat', 'ore']);
+  const step = outer.length / 9, off = Math.random() * step;
+  for (let i = 0; i < 9; i++) {
+    const e = outer[Math.floor(off + i * step)];
+    e.port = ptypes[i]; vertices[e.a].port = e.port; vertices[e.b].port = e.port;
+  }
+
+  const xs = vertices.map(v => v.x), ys = vertices.map(v => v.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const M = 64;
+  const view = { x: minX - M, y: minY - M, w: maxX - minX + 2 * M, h: maxY - minY + 2 * M };
+  const robber = hexes.find(h => !h.res).id;
+  return { hexes, vertices, edges, view, robber };
+}
+
+function makeDeck() {
+  const d = [];
+  for (const [t, n] of Object.entries(CONFIG.devDeck)) for (let i = 0; i < n; i++) d.push(t);
+  return shuffle(d);
+}
+
+/* ---------- game setup ---------- */
+function newGame() {
+  clearTimeout(UI.timer); UI.timer = null;
+  const n = +$('pc').value;
+  const players = [];
+  for (let i = 0; i < n; i++) players.push({
+    id: i, name: PNAME[i], color: PCOL[i], bot: i !== H,
+    res: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 },
+    dev: [], knightsPlayed: 0, ward: false
+  });
+  const bank = {}; RES.forEach(r => bank[r] = CONFIG.bankPerResource);
+  const order = [];
+  for (let i = 0; i < n; i++) order.push(i);
+  for (let i = n - 1; i >= 0; i--) order.push(i);
+  G = {
+    board: makeBoard(), players, bank, deck: makeDeck(), blessings: [],
+    stage: 'setup', pending: { kind: 'setupSettle', pid: order[0] }, afterRobber: 'main',
+    turn: 0, turnNo: 1, devPlayedThisTurn: false, botTrades: 0,
+    setupOrder: order, setupStep: 0, longest: null, army: null, dice: null, winner: null, log: []
+  };
+  G.robber = G.board.robber;
+  UI.buildMode = null; UI.discardSel = {};
+  log('New game. Setup: each player places 2 settlements and 2 roads (snake order).');
+  render();
+  scheduleBot();
+}
+
+/* ---------- rules: legality ---------- */
+function canSettle(pid, v, setup) {
+  const B = G.board, vx = B.vertices[v];
+  if (vx.owner !== null) return false;
+  if (vx.adj.some(a => B.vertices[a].owner !== null)) return false;   // distance rule
+  if (setup) return true;
+  if (cnt(pid, 'settlement') >= CONFIG.piecesPer.settlement) return false;
+  return vx.edges.some(e => B.edges[e].owner === pid);
+}
+function canCity(pid, v) {
+  const vx = G.board.vertices[v];
+  return vx.owner === pid && vx.building === 'settlement' && cnt(pid, 'city') < CONFIG.piecesPer.city;
+}
+function canRoad(pid, e, from) {
+  const B = G.board, ed = B.edges[e];
+  if (ed.owner !== null) return false;
+  if (from !== undefined && from !== null) return ed.a === from || ed.b === from;   // setup: touch the new settlement
+  if (roadCount(pid) >= CONFIG.piecesPer.road) return false;
+  return [ed.a, ed.b].some(v => {
+    const vx = B.vertices[v];
+    if (vx.owner === pid) return true;
+    if (vx.owner !== null) return false;                                    // opponent building blocks the road
+    return vx.edges.some(x => B.edges[x].owner === pid);
+  });
+}
+function legalFor(pid, m) {
+  const B = G.board, p = G.players[pid], out = new Set();
+  if (m.type === 'settle') {
+    if (!m.setup && !can(p, COST.settlement)) return out;
+    B.vertices.forEach(v => { if (canSettle(pid, v.id, !!m.setup)) out.add(v.id); });
+  } else if (m.type === 'city') {
+    if (!can(p, COST.city)) return out;
+    B.vertices.forEach(v => { if (canCity(pid, v.id)) out.add(v.id); });
+  } else if (m.type === 'road') {
+    if (!m.free && !m.setup && !can(p, COST.road)) return out;
+    B.edges.forEach(e => { if (canRoad(pid, e.id, m.setup ? m.from : null)) out.add(e.id); });
+  } else if (m.type === 'robber') {
+    B.hexes.forEach(h => { if (h.id !== G.robber) out.add(h.id); });
+  }
+  return out;
+}
+
+/* ---------- scoring: VP, longest road, largest army ---------- */
+function vpOf(p) {
+  let v = 0;
+  for (const x of G.board.vertices) if (x.owner === p.id) v += x.building === 'city' ? 2 : 1;
+  if (G.longest === p.id) v += 2;
+  if (G.army === p.id) v += 2;
+  return v + p.dev.filter(c => c.type === 'vp').length;
+}
+function longestRoad(pid) {
+  const B = G.board, used = new Set();
+  let best = 0;
+  const dfs = v => {
+    let b = 0;
+    for (const e of B.vertices[v].edges) {
+      const ed = B.edges[e];
+      if (ed.owner !== pid || used.has(e)) continue;
+      const u = ed.a === v ? ed.b : ed.a;
+      used.add(e);
+      const ub = B.vertices[u];
+      const len = 1 + ((ub.owner !== null && ub.owner !== pid) ? 0 : dfs(u));
+      used.delete(e);
+      if (len > b) b = len;
+    }
+    return b;
+  };
+  for (const ed of B.edges) if (ed.owner === pid) best = Math.max(best, dfs(ed.a), dfs(ed.b));
+  return best;
+}
+function holder(cur, lens, min) {
+  const max = Math.max(...lens);
+  if (max < min) return null;
+  if (cur !== null && lens[cur] === max) return cur;
+  const leaders = lens.map((l, i) => l === max ? i : -1).filter(i => i >= 0);
+  return leaders.length === 1 ? leaders[0] : null;
+}
+function recomputeAwards() {
+  const nl = holder(G.longest, G.players.map(p => longestRoad(p.id)), CONFIG.longestRoadMin);
+  if (nl !== G.longest) { G.longest = nl; log(nl === null ? 'Longest Road is unclaimed.' : `${nm(nl)} takes Longest Road (+2 VP).`); }
+  const na = holder(G.army, G.players.map(p => p.knightsPlayed), CONFIG.largestArmyMin);
+  if (na !== G.army) { G.army = na; log(na === null ? 'Largest Army is unclaimed.' : `${nm(na)} takes Largest Army (+2 VP).`); }
+}
+function checkWin() {
+  for (const p of G.players) {
+    if (vpOf(p) >= CONFIG.targetVP) {
+      G.stage = 'over'; G.winner = p.id; G.pending = null;
+      log(`🏆 ${p.name} wins with ${vpOf(p)} VP!`);
+      return true;
+    }
+  }
+  return false;
+}
+function afterAction() { if (G.stage !== 'over') { recomputeAwards(); checkWin(); } }
+
+/* ---------- actions ---------- */
+function doSettle(pid, v, setup) {
+  const B = G.board, p = G.players[pid], vx = B.vertices[v];
+  if (!setup) pay(p, COST.settlement);
+  vx.owner = pid; vx.building = 'settlement';
+  log(`${p.name} built a settlement.`);
+  if (setup && cnt(pid, 'settlement') === 2) {               // second starting settlement pays out
+    const got = [];
+    for (const hid of vx.hexes) {
+      const h = B.hexes[hid];
+      if (h.res) { p.res[h.res]++; G.bank[h.res]--; got.push(h.res); }
+    }
+    if (got.length) log(`${p.name} starts with: ${got.map(r => RNAME[r]).join(', ')}.`);
+  }
+}
+function doCity(pid, v) {
+  pay(G.players[pid], COST.city);
+  G.board.vertices[v].building = 'city';
+  log(`${nm(pid)} upgraded a settlement to a city.`);
+}
+function doRoad(pid, e, free) {
+  if (!free) pay(G.players[pid], COST.road);
+  G.board.edges[e].owner = pid;
+  log(`${nm(pid)} built a road.`);
+}
+function buyDev(pid) {
+  const p = G.players[pid];
+  pay(p, COST.dev);
+  const t = G.deck.pop();
+  p.dev.push({ type: t, turn: G.turnNo });
+  log(`${p.name} bought a development card.`);
+}
+function takeBank(pid, r) {
+  if (G.bank[r] < 1) return false;
+  G.players[pid].res[r]++; G.bank[r]--;
+  return true;
+}
+function takeAllFrom(pid, r) {
+  let total = 0;
+  for (const o of G.players) if (o.id !== pid) { total += o.res[r]; o.res[r] = 0; }
+  G.players[pid].res[r] += total;
+  log(`${nm(pid)} took ${total} ${RNAME[r]} with Monopoly.`);
+}
+function tradeRate(pid, r) {
+  let rate = 4;
+  for (const v of G.board.vertices) {
+    if (v.owner !== pid || !v.port) continue;
+    if (v.port === 'any') rate = Math.min(rate, 3);
+    else if (v.port === r) rate = Math.min(rate, 2);
+  }
+  return rate;
+}
+function bankTrade(pid, give, recv) {
+  const p = G.players[pid], rate = tradeRate(pid, give);
+  if (give === recv || p.res[give] < rate || G.bank[recv] < 1) return false;
+  p.res[give] -= rate; G.bank[give] += rate;
+  G.bank[recv]--; p.res[recv]++;
+  log(`${p.name} traded ${rate} ${RNAME[give]} for 1 ${RNAME[recv]}.`);
+  return true;
+}
+
+/* ---------- robber, stealing, discards ---------- */
+function victimsAt(hid, pid) {
+  const B = G.board, s = new Set();
+  for (const v of B.hexes[hid].vertices) {
+    const o = B.vertices[v].owner;
+    if (o !== null && o !== pid && sumRes(G.players[o]) > 0) s.add(o);
+  }
+  return [...s];
+}
+function steal(thief, victim) {
+  const V = G.players[victim], T = G.players[thief], pool = [];
+  RES.forEach(r => { for (let i = 0; i < V.res[r]; i++) pool.push(r); });
+  if (!pool.length) return;
+  const r = pool[rnd(pool.length)];
+  V.res[r]--; T.res[r]++;
+  const reveal = thief === H || victim === H;
+  log(`${T.name} stole ${reveal ? RNAME[r] : 'a card'} from ${V.name}.`);
+}
+function resolveSteal(thief, victim) {
+  steal(thief, victim);
+  G.pending = null; G.stage = G.afterRobber;
+}
+function moveRobber(thief, hid) {
+  G.robber = hid;
+  log(`${nm(thief)} moved the robber.`);
+  const vics = victimsAt(hid, thief);
+  if (!vics.length) { G.pending = null; G.stage = G.afterRobber; return; }
+  if (vics.length === 1) { resolveSteal(thief, vics[0]); return; }
+  G.pending = { kind: 'steal', pid: thief, victims: vics };
+}
+function startDiscard() {
+  const queue = [];
+  for (const p of G.players) {
+    const t = sumRes(p);
+    if (t <= CONFIG.robberDiscardLimit) continue;
+    if (p.ward) { p.ward = false; log(`🛡️ ${p.name}'s Ward blocked the discard!`); continue; }
+    queue.push({ pid: p.id, need: Math.floor(t / 2) });
+  }
+  UI.discardSel = {};
+  if (queue.length) G.pending = { kind: 'discard', pid: queue[0].pid, queue };
+  else G.pending = { kind: 'robber', pid: G.turn };
+}
+function applyDiscard(q, picks) {
+  const p = G.players[q.pid];
+  for (const r of RES) { const n = picks[r] || 0; p.res[r] -= n; G.bank[r] += n; }
+  log(`${p.name} discarded ${q.need} card(s).`);
+}
+function popDiscard() {
+  const P = G.pending;
+  P.queue.shift();
+  if (P.queue.length) P.pid = P.queue[0].pid;
+  else G.pending = { kind: 'robber', pid: G.turn };
+}
+
+/* ---------- dice & production ---------- */
+function rollDice() {
+  const a = d6(), b = d6(), t = a + b;
+  G.dice = [a, b];
+  log(`${nm(G.turn)} rolled ${a} + ${b} = ${t}.`);
+  if (t === 7) { G.afterRobber = 'main'; startDiscard(); }
+  else { produce(t); G.stage = 'main'; }
+}
+function produce(t) {
+  const B = G.board, gains = G.players.map(() => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 }));
+  const tiles = B.hexes.filter(h => h.num === t && h.res && h.id !== G.robber);
+  for (const h of tiles) for (const v of h.vertices) {
+    const vx = B.vertices[v];
+    if (vx.owner !== null) gains[vx.owner][h.res] += vx.building === 'city' ? 2 : 1;
+  }
+  for (const bl of G.blessings.filter(b => b.num === t)) {
+    for (const h of tiles) for (const v of h.vertices) {
+      if (B.vertices[v].owner === bl.owner) gains[bl.owner][h.res]++;
+    }
+    log(`✨ ${nm(bl.owner)}'s Blessing of the Harvest triggers on ${t}!`);
+  }
+  G.blessings = G.blessings.filter(b => b.num !== t);
+  for (const r of RES) {
+    const demand = gains.reduce((s, g) => s + g[r], 0);
+    if (demand > G.bank[r]) { log(`Bank is short of ${RNAME[r]}, so nobody collects it.`); gains.forEach(g => { g[r] = 0; }); }
+  }
+  G.players.forEach((p, i) => {
+    for (const r of RES) { const n = gains[i][r]; if (n) { p.res[r] += n; G.bank[r] -= n; } }
+  });
+  const parts = G.players.map((p, i) => { const tot = RES.reduce((s, r) => s + gains[i][r], 0); return tot ? `${p.name} +${tot}` : null; }).filter(Boolean);
+  log(parts.length ? 'Collected: ' + parts.join(', ') + '.' : 'Nothing collected.');
+}
+function endTurn() {
+  UI.buildMode = null;
+  G.turn = (G.turn + 1) % G.players.length;
+  G.turnNo++;
+  G.devPlayedThisTurn = false;
+  G.botTrades = 0;
+  G.stage = 'roll';
+  log(`--- ${nm(G.turn)}'s turn ---`);
+}
+
+/* ---------- development cards ---------- */
+function canPlayDev(pid, k) {
+  const p = G.players[pid], c = p.dev[k];
+  if (!c || c.type === 'vp' || G.stage === 'over' || G.stage === 'setup' || G.pending) return false;
+  if (c.type === 'pickpocket' && !G.players.some(o => o.id !== pid && sumRes(o) > 0)) return false;
+  if (c.type === 'road' && legalFor(pid, { type: 'road', free: true }).size === 0) return false;
+  if (c.type === 'yop' && !RES.some(r => G.bank[r] > 0)) return false;
+  if (c.type === 'ward' && p.ward) return false;
+  if (DEV[c.type].anytime) return true;
+  return G.turn === pid && (G.stage === 'roll' || G.stage === 'main') && c.turn < G.turnNo && !G.devPlayedThisTurn;
+}
+function playDev(pid, k) {
+  const p = G.players[pid], c = p.dev.splice(k, 1)[0], T = DEV[c.type];
+  if (!T.anytime) G.devPlayedThisTurn = true;
+  log(`${p.name} played ${T.name}${T.anytime ? ' (any time)' : ''}.`);
+  switch (c.type) {
+    case 'knight':
+      p.knightsPlayed++; G.afterRobber = G.stage; G.pending = { kind: 'robber', pid }; break;
+    case 'road':     G.pending = { kind: 'roadBuild', pid, left: 2 }; break;
+    case 'yop':      G.pending = { kind: 'yop', pid, left: 2 }; break;
+    case 'mono':     G.pending = { kind: 'mono', pid }; break;
+    case 'ward':     p.ward = true; log(`🛡️ ${p.name} is warded against the next 7.`); break;
+    case 'pickpocket': G.pending = { kind: 'pick', pid }; break;
+    case 'blessing': G.pending = { kind: 'bless', pid }; break;
+  }
+}
+
+/* ---------- turn / pending flow ---------- */
+function setupAdvance() {
+  G.setupStep++;
+  if (G.setupStep >= G.setupOrder.length) {
+    G.stage = 'roll'; G.turn = 0; G.turnNo = 1; G.pending = null;
+    log(`Setup complete. ${nm(0)} rolls first.`);
+  } else {
+    G.pending = { kind: 'setupSettle', pid: G.setupOrder[G.setupStep] };
+  }
+}
+function actorId() { return G.pending ? G.pending.pid : G.turn; }
+
+/* ---------- bot AI ---------- */
+function vertexScore(v) {
+  const B = G.board, vx = B.vertices[v];
+  let s = 0;
+  const types = new Set();
+  for (const hid of vx.hexes) { const h = B.hexes[hid]; if (h.res) { s += PIPS[h.num]; types.add(h.res); } }
+  s += types.size * 0.5;
+  if (vx.port) s += 1;
+  return s;
+}
+function roadScore(e) {
+  const ed = G.board.edges[e];
+  return Math.max(vertexScore(ed.a), vertexScore(ed.b));
+}
+function botRobberHex(pid) {
+  const B = G.board;
+  return pickBest(B.hexes.filter(h => h.id !== G.robber).map(h => h.id), hid => {
+    const h = B.hexes[hid]; let s = 0;
+    for (const v of h.vertices) {
+      const vx = B.vertices[v];
+      if (vx.owner === null) continue;
+      const w = vx.building === 'city' ? 2 : 1;
+      if (vx.owner === pid) s -= 3 * w;
+      else s += w * (sumRes(G.players[vx.owner]) > 0 ? 3 : 0.5);
+    }
+    return s + (h.num ? PIPS[h.num] * 0.1 : 0);
+  });
+}
+function botDiscard() {
+  const q = G.pending.queue[0], p = G.players[q.pid];
+  const c = { ...p.res }, picks = {};
+  for (let i = 0; i < q.need; i++) {
+    let best = null;
+    for (const r of RES) if (c[r] > 0 && (best === null || c[r] > c[best])) best = r;
+    c[best]--; picks[best] = (picks[best] || 0) + 1;
+  }
+  applyDiscard(q, picks);
+  popDiscard();
+}
+function botTrade(p) {
+  const goals = [COST.city, COST.settlement, COST.dev, COST.road];
+  for (const cost of goals) {
+    const need = Object.keys(cost).filter(r => p.res[r] < cost[r]);
+    if (!need.length) continue;
+    const recv = need.find(r => G.bank[r] > 0);
+    if (!recv) continue;
+    const give = RES.find(r => !cost[r] && p.res[r] >= tradeRate(p.id, r));
+    if (give && give !== recv) return bankTrade(p.id, give, recv);
+  }
+  return false;
+}
+function botResolve(p) {
+  const P = G.pending, pid = p.id;
+  switch (P.kind) {
+    case 'discard': botDiscard(); break;
+    case 'setupSettle': {
+      const v = pickBest(legalFor(pid, { type: 'settle', setup: true }), vertexScore);
+      doSettle(pid, v, true); G.pending = { kind: 'setupRoad', pid, vertex: v }; break;
+    }
+    case 'setupRoad': {
+      const e = pickBest(legalFor(pid, { type: 'road', setup: true, from: P.vertex }), e => vertexScore(otherEnd(e, P.vertex)));
+      doRoad(pid, e, true); setupAdvance(); break;
+    }
+    case 'robber': moveRobber(pid, botRobberHex(pid)); break;
+    case 'steal': {
+      const v = P.victims.slice().sort((a, b) => sumRes(G.players[b]) - sumRes(G.players[a]))[0];
+      resolveSteal(pid, v); break;
+    }
+    case 'roadBuild': {
+      const legal = legalFor(pid, { type: 'road', free: true });
+      if (!legal.size) { G.pending = null; break; }
+      doRoad(pid, pickBest(legal, roadScore), true);
+      if (G.pending && --G.pending.left <= 0) G.pending = null;
+      break;
+    }
+    case 'yop': {
+      if (!RES.some(r => G.bank[r] > 0)) { G.pending = null; break; }
+      const r = pickBest(RES.filter(x => G.bank[x] > 0), x => -p.res[x]);
+      takeBank(pid, r);
+      if (--P.left <= 0) G.pending = null;
+      break;
+    }
+    case 'mono': {
+      takeAllFrom(pid, pickBest(RES, r => G.players.reduce((s, o) => s + (o.id === pid ? 0 : o.res[r]), 0)));
+      G.pending = null; break;
+    }
+    case 'bless': {
+      const own = n => G.board.hexes.filter(h => h.num === n && h.vertices.some(v => G.board.vertices[v].owner === pid)).length;
+      const n = pickBest([2, 3, 4, 5, 6, 8, 9, 10, 11, 12], n => PIPS[n] + own(n) * 3);
+      G.blessings.push({ num: n, owner: pid });
+      log(`${p.name} named ${n} for a Blessing of the Harvest.`);
+      G.pending = null; break;
+    }
+    case 'pick': {
+      const t = G.players.filter(o => o.id !== pid && sumRes(o) > 0).sort((a, b) => sumRes(b) - sumRes(a))[0];
+      if (t) steal(pid, t.id);
+      G.pending = null; break;
+    }
+    default: G.pending = null;
+  }
+}
+function botRoll(p) {
+  const pid = p.id;
+  if (!p.ward && sumRes(p) >= 7) {
+    const k = p.dev.findIndex((c, i) => c.type === 'ward' && canPlayDev(pid, i));
+    if (k >= 0) { playDev(pid, k); return; }
+  }
+  if (Math.random() < 0.35) {
+    const k = p.dev.findIndex((c, i) => c.type === 'pickpocket' && canPlayDev(pid, i));
+    if (k >= 0) { playDev(pid, k); return; }
+  }
+  if (Math.random() < 0.25) {
+    const k = p.dev.findIndex((c, i) => c.type === 'knight' && canPlayDev(pid, i));
+    if (k >= 0) { playDev(pid, k); return; }
+  }
+  rollDice();
+}
+function botMain(p) {
+  const pid = p.id;
+  if (Math.random() < 0.5) {
+    const k = p.dev.findIndex((c, i) => (c.type === 'yop' || c.type === 'mono' || c.type === 'road' || c.type === 'blessing') && canPlayDev(pid, i));
+    if (k >= 0 && (p.dev[k].type !== 'mono' || G.players.some(o => o.id !== pid && sumRes(o) >= 4))) { playDev(pid, k); return; }
+  }
+  const cities = legalFor(pid, { type: 'city' });
+  if (cities.size) { doCity(pid, pickBest(cities, vertexScore)); return; }
+  const sett = legalFor(pid, { type: 'settle' });
+  if (sett.size) { doSettle(pid, pickBest(sett, vertexScore), false); return; }
+  if (G.deck.length && can(p, COST.dev) && Math.random() < 0.6) { buyDev(pid); return; }
+  const roads = legalFor(pid, { type: 'road' });
+  if (roads.size && Math.random() < 0.8) { doRoad(pid, pickBest(roads, roadScore), false); return; }
+  if (G.botTrades < CONFIG.maxBotTradesPerTurn && botTrade(p)) { G.botTrades++; return; }
+  endTurn();
+}
+function botRoll_or_main(p) {
+  if (G.stage === 'roll') return botRoll(p);
+  if (G.stage === 'main') return botMain(p);
+}
+function botStep() {
+  if (!G || G.stage === 'over') return;
+  const pid = actorId(), p = G.players[pid];
+  if (p.id === H && !FORCE_BOTS) return;
+  if (G.pending) return botResolve(p);
+  botRoll_or_main(p);
+}
+
+/* ---------- human interaction ---------- */
+function currentMode() {
+  if (G.stage === 'over') return null;
+  const P = G.pending;
+  if (P) {
+    if (P.pid !== H) return null;
+    if (P.kind === 'setupSettle') return { type: 'settle', setup: true };
+    if (P.kind === 'setupRoad') return { type: 'road', setup: true, from: P.vertex };
+    if (P.kind === 'robber') return { type: 'robber' };
+    if (P.kind === 'roadBuild') return { type: 'road', free: true };
+    return null;
+  }
+  if (UI.buildMode && G.turn === H && G.stage === 'main') return { type: UI.buildMode };
+  return null;
+}
+function onBoardClick(kind, id) {
+  const m = currentMode();
+  if (!m) return;
+  const kindOf = { settle: 'v', city: 'v', road: 'e', robber: 'h' };
+  if (kindOf[m.type] !== kind || !legalFor(H, m).has(id)) return;
+  if (m.type === 'settle' && m.setup) {
+    doSettle(H, id, true);
+    G.pending = { kind: 'setupRoad', pid: H, vertex: id };
+  } else if (m.type === 'settle') {
+    doSettle(H, id, false); UI.buildMode = null;
+  } else if (m.type === 'city') {
+    doCity(H, id); UI.buildMode = null;
+  } else if (m.type === 'road' && m.setup) {
+    doRoad(H, id, true); setupAdvance();
+  } else if (m.type === 'road' && m.free) {
+    doRoad(H, id, true);
+    if (G.pending && G.pending.kind === 'roadBuild' && --G.pending.left <= 0) G.pending = null;
+  } else if (m.type === 'road') {
+    doRoad(H, id, false); UI.buildMode = null;
+  } else if (m.type === 'robber') {
+    moveRobber(H, id);
+  }
+  afterAction(); render(); scheduleBot();
+}
+function P_is(kind) { return G.pending && G.pending.kind === kind && G.pending.pid === H; }
+
+function act(a, arg) {
+  if (a === 'new') { newGame(); return; }
+  if (!G || G.stage === 'over') return;
+  const me = G.players[H], myTurn = G.turn === H && !G.pending;
+  switch (a) {
+    case 'roll':   if (myTurn && G.stage === 'roll') rollDice(); break;
+    case 'end':    if (myTurn && G.stage === 'main') endTurn(); break;
+    case 'mode':   UI.buildMode = UI.buildMode === arg ? null : arg; break;
+    case 'cancel': UI.buildMode = null; break;
+    case 'buy':    if (myTurn && G.stage === 'main' && can(me, COST.dev) && G.deck.length) buyDev(H); break;
+    case 'dev':    if (canPlayDev(H, +arg)) playDev(H, +arg); break;
+    case 'trade':  if (myTurn && G.stage === 'main') bankTrade(H, UI.give, UI.recv); break;
+    case 'dsel': {
+      if (!P_is('discard')) break;
+      const [r, d] = arg.split('|'), need = G.pending.queue[0].need;
+      const tot = RES.reduce((s, x) => s + (UI.discardSel[x] || 0), 0);
+      const cur = (UI.discardSel[r] || 0) + (+d);
+      if (cur < 0 || cur > me.res[r]) break;
+      if (+d > 0 && tot >= need) break;
+      UI.discardSel[r] = cur;
+      break;
+    }
+    case 'dconfirm': {
+      if (!P_is('discard')) break;
+      const q = G.pending.queue[0];
+      const tot = RES.reduce((s, x) => s + (UI.discardSel[x] || 0), 0);
+      if (tot !== q.need) break;
+      applyDiscard(q, UI.discardSel);
+      UI.discardSel = {};
+      popDiscard();
+      break;
+    }
+    case 'yop': {
+      if (P_is('yop') && takeBank(H, arg)) {
+        if (--G.pending.left <= 0 || !RES.some(r => G.bank[r] > 0)) G.pending = null;
+      }
+      break;
+    }
+    case 'mono':  if (P_is('mono')) { takeAllFrom(H, arg); G.pending = null; } break;
+    case 'bless': {
+      const n = +arg;
+      if (P_is('bless') && n >= 2 && n <= 12 && n !== 7) {
+        G.blessings.push({ num: n, owner: H });
+        log(`You named ${n} for a Blessing of the Harvest.`);
+        G.pending = null;
+      }
+      break;
+    }
+    case 'steal': if (P_is('steal') && G.pending.victims.includes(+arg)) resolveSteal(H, +arg); break;
+    case 'pick': {
+      const o = +arg;
+      if (P_is('pick') && o !== H && sumRes(G.players[o]) > 0) { steal(H, o); G.pending = null; }
+      break;
+    }
+  }
+  afterAction(); render(); scheduleBot();
+}
+
+/* ---------- bot scheduler ---------- */
+function scheduleBot() {
+  if (UI.timer || !G || G.stage === 'over') return;
+  if (actorId() === H && !FORCE_BOTS) return;
+  UI.timer = setTimeout(tickBot, +$('speed').value);
+}
+function tickBot() {
+  UI.timer = null;
+  botStep();
+  afterAction();
+  render();
+  scheduleBot();
+}
+
+/* ---------- rendering ---------- */
+function promptText() {
+  if (G.stage === 'over') return '';
+  const P = G.pending;
+  if (P && P.kind === 'discard' && P.pid === H) return `You must discard ${P.queue[0].need} card(s).`;
+  if (P && P.pid !== H) return `${nm(P.pid)} is deciding…`;
+  if (P) switch (P.kind) {
+    case 'setupSettle': return 'Setup: click a glowing intersection to place a settlement.';
+    case 'setupRoad': return 'Click a glowing edge to place your road.';
+    case 'robber': return 'Click a hex to move the robber there.';
+    case 'steal': return 'Choose a player to steal from.';
+    case 'roadBuild': return `Road Building: place ${P.left} free road(s).`;
+    case 'yop': return `Year of Plenty: take ${P.left} resource(s).`;
+    case 'mono': return 'Monopoly: choose a resource to take from everyone.';
+    case 'bless': return 'Blessing of the Harvest: name a number (2-12, not 7).';
+    case 'pick': return 'Pickpocket: choose a victim.';
+  }
+  if (G.stage === 'setup') return '';
+  if (G.turn !== H) return `${nm(G.turn)} is playing…`;
+  if (G.stage === 'roll') return 'Your turn: roll the dice (you can play cards first).';
+  if (UI.buildMode) return `Build ${UI.buildMode}: click a glowing spot. Esc cancels.`;
+  return 'Build, trade, play cards, or end your turn.';
+}
+function render() {
+  if (!G) return;
+  let st;
+  if (G.stage === 'over') st = `🏆 ${nm(G.winner)} won!`;
+  else if (G.stage === 'setup') st = `Setup: ${nm(actorId())} is placing`;
+  else st = `${nm(G.turn)}'s turn`;
+  $('status').innerHTML = `<b>${st}</b> <span class="muted">· turn ${G.turnNo}</span>`;
+  $('dice').innerHTML = G.dice ? `<span class="die">${G.dice[0]}</span><span class="die">${G.dice[1]}</span>` : '';
+  const t = promptText();
+  $('banner').innerHTML = t ? `<div class="banner">${t}</div>` : '';
+  renderBoard(); renderActions(); renderPlayers(); renderHand(); renderTrade(); renderLog(); renderModal();
+}
+function renderBoard() {
+  const B = G.board, mode = currentMode(), legal = mode ? legalFor(H, mode) : new Set();
+  let s = '';
+  for (const h of B.hexes) {
+    const pts = h.vertices.map(v => B.vertices[v].x.toFixed(1) + ',' + B.vertices[v].y.toFixed(1)).join(' ');
+    s += `<polygon points="${pts}" fill="${RCOL[h.type]}" stroke="#0c1a24" stroke-width="2" data-k="h" data-i="${h.id}"/>`;
+    if (mode && mode.type === 'robber' && legal.has(h.id)) s += `<polygon points="${pts}" class="hexhl" pointer-events="none"/>`;
+    s += `<text x="${h.x.toFixed(1)}" y="${(h.y - 27).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2b2110" opacity=".8" pointer-events="none">${RNAME[h.res || 'desert']}</text>`;
+    if (h.num) {
+      const red = h.num === 6 || h.num === 8;
+      s += `<circle cx="${h.x.toFixed(1)}" cy="${h.y.toFixed(1)}" r="17" class="tok" pointer-events="none"/>`
+         + `<text x="${h.x.toFixed(1)}" y="${(h.y - 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${red ? 18 : 16}" font-weight="800" fill="${red ? '#b71c1c' : '#222'}" pointer-events="none">${h.num}</text>`
+         + `<text x="${h.x.toFixed(1)}" y="${(h.y + 10).toFixed(1)}" text-anchor="middle" font-size="7" fill="${red ? '#b71c1c' : '#444'}" pointer-events="none">${'•'.repeat(PIPS[h.num])}</text>`;
+    }
+    if (h.id === G.robber) s += `<circle cx="${(h.x + 20).toFixed(1)}" cy="${(h.y + 20).toFixed(1)}" r="9" class="robber" pointer-events="none"/>`;
+  }
+  for (const e of B.edges) {
+    const a = B.vertices[e.a], b = B.vertices[e.b];
+    if (e.port) s += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#f0b429" stroke-width="4" pointer-events="none"/>`;
+    if (e.owner !== null) s += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#0b1116" stroke-width="11" stroke-linecap="round" pointer-events="none"/>`
+                            + `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="${PCOL[e.owner]}" stroke-width="7" stroke-linecap="round" pointer-events="none"/>`;
+    if (mode && mode.type === 'road' && legal.has(e.id)) {
+      s += `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#f0b429" stroke-width="5" stroke-dasharray="6 4" pointer-events="none"/>`
+         + `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="rgba(0,0,0,0)" stroke-width="18" data-k="e" data-i="${e.id}" style="cursor:pointer"/>`;
+    }
+  }
+  for (const v of B.vertices) {
+    if (v.owner !== null) {
+      const c = PCOL[v.owner];
+      s += v.building === 'city'
+        ? `<rect x="${(v.x - 9).toFixed(1)}" y="${(v.y - 9).toFixed(1)}" width="18" height="18" rx="3" fill="${c}" stroke="#0b1116" stroke-width="2" pointer-events="none"/>`
+        : `<circle cx="${v.x.toFixed(1)}" cy="${v.y.toFixed(1)}" r="8" fill="${c}" stroke="#0b1116" stroke-width="2" pointer-events="none"/>`;
+    }
+    if (mode && (mode.type === 'settle' || mode.type === 'city') && legal.has(v.id)) {
+      s += `<circle cx="${v.x.toFixed(1)}" cy="${v.y.toFixed(1)}" r="11" class="valid" pointer-events="none"/>`
+         + `<circle cx="${v.x.toFixed(1)}" cy="${v.y.toFixed(1)}" r="13" class="hit" data-k="v" data-i="${v.id}"/>`;
+    }
+  }
+  // port labels
+  for (const e of B.edges) {
+    if (!e.port) continue;
+    const a = B.vertices[e.a], b = B.vertices[e.b];
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, L = Math.hypot(mx, my);
+    const lx = mx / L * (L + 26), ly = my / L * (L + 26);
+    const label = e.port === 'any' ? '3:1' : '2:1 ' + RNAME[e.port];
+    s += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="#ffe9a8" pointer-events="none">${label}</text>`;
+  }
+  const svg = $('board');
+  svg.setAttribute('viewBox', `${B.view.x} ${B.view.y} ${B.view.w} ${B.view.h}`);
+  svg.innerHTML = s;
+}
+function renderActions() {
+  const me = G.players[H], P = G.pending, mine = G.turn === H && G.stage !== 'over';
+  let html = '';
+  const btn = (label, act, arg, cls, dis) => { html += `<button data-act="${act}" data-arg="${arg ?? ''}" class="${cls || ''}" ${dis ? 'disabled' : ''}>${label}</button> `; };
+  if (G.stage === 'over') { $('actions').innerHTML = ''; return; }
+  if (!P) {
+    if (mine && G.stage === 'roll') btn('🎲 Roll dice', 'roll', '', 'primary');
+    if (mine && G.stage === 'main') {
+      btn('🛣️ Road (1 brick, 1 lumber)', 'mode', 'road', UI.buildMode === 'road' ? 'primary' : '', !legalFor(H, { type: 'road' }).size);
+      btn('🏠 Settlement', 'mode', 'settle', UI.buildMode === 'settle' ? 'primary' : '', !legalFor(H, { type: 'settle' }).size);
+      btn('🏰 City', 'mode', 'city', UI.buildMode === 'city' ? 'primary' : '', !legalFor(H, { type: 'city' }).size);
+      btn('🃏 Buy dev card', 'buy', '', '', !(can(me, COST.dev) && G.deck.length));
+      btn('End turn', 'end', '', 'primary');
+    }
+    if (mine && UI.buildMode) btn('Cancel', 'cancel', '', 'danger');
+  } else if (P.pid === H) {
+    switch (P.kind) {
+      case 'steal': P.victims.forEach(v => btn(`Steal from ${nm(v)}`, 'steal', v, 'primary')); break;
+      case 'pick':
+        G.players.forEach(o => { if (o.id !== H && sumRes(o) > 0) btn(`Pickpocket ${o.name} (${sumRes(o)} cards)`, 'pick', o.id, 'primary'); });
+        break;
+      case 'yop': RES.forEach(r => btn(`+1 ${RNAME[r]}`, 'yop', r, '', G.bank[r] < 1)); break;
+      case 'mono': RES.forEach(r => btn(`All ${RNAME[r]}`, 'mono', r)); break;
+      case 'bless': [2, 3, 4, 5, 6, 8, 9, 10, 11, 12].forEach(n => btn(String(n), 'bless', n)); break;
+    }
+  }
+  $('actions').innerHTML = html;
+}
+function renderPlayers() {
+  $('players').innerHTML = G.players.map(p => {
+    const hidden = p.dev.filter(c => c.type === 'vp').length;
+    const pub = vpOf(p) - hidden;
+    const awards = [G.longest === p.id ? '🛣️ Longest Road' : '', G.army === p.id ? '⚔️ Largest Army' : ''].filter(Boolean).join(' · ');
+    const isTurn = G.stage !== 'over' && G.stage !== 'setup' && G.turn === p.id;
+    return `<div class="player ${isTurn ? 'turn' : ''}">
+      <div class="row" style="justify-content:space-between">
+        <b><span class="dot" style="background:${p.color}"></span> ${p.name}${p.bot ? ' 🤖' : ''}</b>
+        <b>${pub} VP${p.id === H && hidden ? ` <span class="muted">(+${hidden} hidden)</span>` : ''}</b>
+      </div>
+      <div class="muted" style="font-size:12.5px">🂠 ${p.dev.length} dev · ${sumRes(p)} cards · ⚔️ ${p.knightsPlayed} knights · 🛣️ ${longestRoad(p.id)} road${p.id === H && p.ward ? ' <span class="tag">🛡 Ward</span>' : ''}</div>
+      ${awards ? `<div style="font-size:12px;color:var(--accent)">${awards}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+function renderHand() {
+  const me = G.players[H];
+  const res = RES.map(r => `<span class="res"><span class="dot" style="background:${RCOL[r]}"></span>${RNAME[r]} <b>${me.res[r]}</b></span>`).join('');
+  const cards = me.dev.map((c, k) => {
+    const T = DEV[c.type];
+    const fresh = !T.anytime && c.turn === G.turnNo && c.type !== 'vp';
+    const ok = canPlayDev(H, k);
+    return `<div class="card">
+      <b>${T.name}${T.anytime ? ' <span class="tag">ANY TIME</span>' : ''}</b>
+      <small>${T.desc}</small>
+      ${c.type === 'vp' ? '<small>Hidden · +1 VP</small>' : `<button data-act="dev" data-arg="${k}" ${ok ? '' : 'disabled'}>Play</button>`}
+      ${fresh ? '<small>Bought this turn</small>' : ''}
+    </div>`;
+  }).join('') || '<span class="muted">No development cards.</span>';
+  $('hand').innerHTML = `<div class="row" style="margin-top:12px">${res}</div>
+    <h2 style="margin-top:12px">Development cards</h2><div class="row">${cards}</div>`;
+}
+function renderTrade() {
+  const me = G.players[H], rate = tradeRate(H, UI.give);
+  const opts = sel => RES.map(r => `<option value="${r}" ${r === sel ? 'selected' : ''}>${RNAME[r]}</option>`).join('');
+  const ok = G.turn === H && G.stage === 'main' && !G.pending && UI.give !== UI.recv && me.res[UI.give] >= rate && G.bank[UI.recv] > 0;
+  $('trade').innerHTML = `<div class="row"><select id="give">${opts(UI.give)}</select> → <select id="recv">${opts(UI.recv)}</select></div>
+    <div class="row" style="margin-top:8px"><span class="muted">Rate ${rate}:1</span>
+    <button data-act="trade" ${ok ? '' : 'disabled'}>Trade</button></div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Bank trades only. Ports give 3:1 (any) or 2:1 (specific).</div>`;
+}
+function renderLog() {
+  $('log').innerHTML = G.log.slice(-150).reverse().map(m => `<div>${m}</div>`).join('');
+}
+function renderModal() {
+  const P = G.pending, ov = $('overlay');
+  if (G.stage === 'over') {
+    ov.classList.add('show');
+    $('modal').innerHTML = `<h2>Game over</h2><p style="font-size:18px"><b>${nm(G.winner)}</b> wins!</p>
+      <p class="muted">${G.players.map(p => `${p.name}: ${vpOf(p)} VP`).join(' · ')}</p>
+      <button class="primary" data-act="new">Play again</button>`;
+    return;
+  }
+  if (P && P.kind === 'discard' && P.pid === H) {
+    const q = P.queue[0], me = G.players[H], sel = UI.discardSel;
+    const tot = RES.reduce((s, r) => s + (sel[r] || 0), 0);
+    const rows = RES.map(r => `<div class="row" style="justify-content:space-between;margin:4px 0">
+        <span>${RNAME[r]} <span class="muted">(you have ${me.res[r]})</span></span>
+        <span class="row"><button data-act="dsel" data-arg="${r}|-1">−</button>
+        <b style="min-width:26px;text-align:center">${sel[r] || 0}</b>
+        <button data-act="dsel" data-arg="${r}|1" ${(sel[r] || 0) >= me.res[r] ? 'disabled' : ''}>+</button></span></div>`).join('');
+    ov.classList.add('show');
+    $('modal').innerHTML = `<h2>A 7 was rolled</h2><p>Discard <b>${q.need}</b> card(s). Selected ${tot}/${q.need}.</p>${rows}
+      <div class="row" style="margin-top:10px"><button class="primary" data-act="dconfirm" ${tot === q.need ? '' : 'disabled'}>Discard</button></div>`;
+    return;
+  }
+  ov.classList.remove('show');
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (el) { act(el.dataset.act, el.dataset.arg); return; }
+  const hit = e.target.closest('[data-k]');
+  if (hit && hit.closest('#board')) onBoardClick(hit.dataset.k, +hit.dataset.i);
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'give') UI.give = e.target.value;
+  if (e.target.id === 'recv') UI.recv = e.target.value;
+  render();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && UI.buildMode) { UI.buildMode = null; render(); }
+});
+
+newGame();
+</script>
+</body>
+</html>
