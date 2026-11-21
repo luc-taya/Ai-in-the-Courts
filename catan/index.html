@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hexhaven</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #273449; --line: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #facc15; --sea: #1d4e89;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  button, select { font: inherit; }
+  button { background: #3b4a63; color: var(--text); border: 1px solid #4b5d7a; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button:hover:not(:disabled) { background: #4b5d7a; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.active { background: var(--accent); color: #111; border-color: var(--accent); }
+  button.primary { background: #2563eb; border-color: #3b82f6; }
+  select { background: #273449; color: var(--text); border: 1px solid #4b5d7a; border-radius: 6px; padding: 4px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 8px 14px; background: #111827; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+  #status { color: var(--muted); min-width: 170px; }
+  #dice { font-size: 30px; line-height: 1; min-width: 110px; }
+  #dice small { font-size: 14px; color: var(--muted); vertical-align: middle; }
+  #prompt { flex: 1 1 360px; background: #334155; border-left: 4px solid var(--accent); padding: 6px 10px; border-radius: 6px; min-height: 34px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #prompt .msg { margin-right: 6px; }
+  #controls { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; padding: 12px; }
+  @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+  #board { width: 100%; max-height: 70vh; display: block; background: var(--sea); border-radius: 12px; user-select: none; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 8px; }
+  #hand { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .res { background: var(--panel2); border-radius: 8px; padding: 4px 10px; font-size: 16px; }
+  .res b { margin-left: 4px; }
+  .pieces { color: var(--muted); margin-left: auto; }
+  #actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  #actions button small { display: block; font-size: 10px; color: #cbd5e1; }
+  #devHand { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .dev { background: var(--panel2); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .dev .t { font-weight: 600; }
+  .dev .d { color: var(--muted); font-size: 12px; flex: 1; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; background: #0ea5e9; color: #04131f; margin-left: 4px; vertical-align: middle; }
+  .tag.new { background: #64748b; color: #fff; }
+  .pl { border-left: 5px solid var(--pc); background: var(--panel2); border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; }
+  .pl.cur { outline: 2px solid var(--accent); }
+  .pl-head { display: flex; align-items: center; gap: 6px; }
+  .pl-head .vp { margin-left: auto; font-weight: 700; }
+  .pl-stats { color: var(--muted); font-size: 12px; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 10px; background: #475569; margin: 2px 4px 0 0; }
+  .badge.ward { background: #0ea5e9; color: #04131f; }
+  .badge.award { background: var(--accent); color: #111; }
+  .badge.dim { background: transparent; border: 1px dashed #475569; color: var(--muted); }
+  #trade { display: grid; grid-template-columns: auto 1fr; gap: 6px 8px; align-items: center; }
+  #tradeRate { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+  #log { height: 260px; overflow-y: auto; font-size: 12px; background: #0b1222; border-radius: 6px; padding: 6px; }
+  #log div { padding: 1px 0; border-bottom: 1px solid #141d31; }
+  .sw { width: 12px; height: 12px; border-radius: 50%; background: var(--pc); display: inline-block; }
+  #modal, #overlay { position: fixed; inset: 0; background: rgba(2, 6, 23, .7); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  #modal[hidden], #overlay[hidden] { display: none; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; min-width: 300px; max-width: 92vw; }
+  .card h3 { margin: 0 0 6px; }
+  .drow { display: grid; grid-template-columns: 1fr 60px 32px 28px 32px; gap: 6px; align-items: center; margin: 6px 0; }
+  .drow b { text-align: center; }
+  /* board */
+  .hex { stroke: #f1e4c3; stroke-width: 3; }
+  .hex.hex-target { stroke: var(--accent); stroke-width: 6; cursor: pointer; animation: glowH .9s ease-in-out infinite alternate; }
+  .target { fill: #fffbe6; stroke: var(--accent); stroke-width: 3; cursor: pointer; animation: glow .9s ease-in-out infinite alternate; }
+  .target-edge { stroke: var(--accent); stroke-width: 11; stroke-linecap: round; opacity: .7; cursor: pointer; animation: glow .9s ease-in-out infinite alternate; }
+  .target:hover, .target-edge:hover { opacity: 1; fill: #fff; }
+  @keyframes glow { from { filter: drop-shadow(0 0 1px #facc15); } to { filter: drop-shadow(0 0 8px #facc15); } }
+  @keyframes glowH { from { stroke-opacity: .5; } to { stroke-opacity: 1; } }
+  .tok { fill: #f5e6c8; stroke: #6b5b3e; stroke-width: 1.5; }
+  .num { font-weight: 700; font-size: 17px; text-anchor: middle; dominant-baseline: central; fill: #1f2937; }
+  .num.hot { fill: #c62828; }
+  .icon { font-size: 15px; text-anchor: middle; dominant-baseline: central; }
+  .portlbl { font-size: 10px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: #1f2937; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⬢ Hexhaven</h1>
+  <div id="status"></div>
+  <div id="dice"></div>
+  <div id="prompt"></div>
+  <div id="controls">
+    <label>Players <select id="selPlayers"><option value="3">3</option><option value="4" selected>4</option></select></label>
+    <label>Bot speed <select id="selSpeed"><option value="slow">slow</option><option value="normal" selected>normal</option><option value="fast">fast</option></select></label>
+    <button data-act="newgame">New game</button>
+  </div>
+</header>
+<main>
+  <section>
+    <svg id="board" viewBox="-320 -300 640 600" aria-label="Game board"></svg>
+    <div class="panel" style="margin-top:10px"><h2>Your hand</h2><div id="hand"></div></div>
+    <div class="panel"><h2>Actions</h2>
+      <div id="actions">
+        <button id="btnRoll" class="primary" data-act="roll">🎲 Roll</button>
+        <button id="btnRoad" data-act="mode" data-arg="road">Road<small>🌲🧱</small></button>
+        <button id="btnSettlement" data-act="mode" data-arg="settlement">Settlement<small>🌲🧱🐑🌾</small></button>
+        <button id="btnCity" data-act="mode" data-arg="city">City<small>🌾🌾⛰️⛰️⛰️</small></button>
+        <button id="btnDev" data-act="buydev">Buy dev card<small>🐑🌾⛰️</small></button>
+        <button id="btnEnd" data-act="end">End turn</button>
+      </div>
+    </div>
+    <div class="panel"><h2>Development cards</h2><div id="devHand"></div></div>
+  </section>
+  <aside>
+    <div class="panel"><h2>Players</h2><div id="players"></div></div>
+    <div class="panel"><h2>Bank trade</h2>
+      <div id="trade">
+        <label for="tradeGive">Give</label><select id="tradeGive"></select>
+        <label for="tradeGet">Receive</label><select id="tradeGet"></select>
+        <div id="tradeRate"></div>
+        <button id="btnTrade" data-act="trade" style="grid-column:1/-1">Trade with bank</button>
+      </div>
+    </div>
+    <div class="panel"><h2>Log</h2><div id="log"></div></div>
+  </aside>
+</main>
+<div id="modal" hidden></div>
+<div id="overlay" hidden></div>
+<script>
+'use strict';
+/* =====================================================================
+ * CONFIG — every tunable lives here.
+ * ===================================================================== */
+const CONFIG = {
+  VP_TO_WIN: 10,
+  DISCARD_OVER: 7,                 // players holding MORE than this discard half on a 7
+  BANK_PER_RESOURCE: 19,
+  LIMITS: { road: 15, settlement: 5, city: 4 },
+  COSTS: {
+    road:       { wood: 1, brick: 1 },
+    settlement: { wood: 1, brick: 1, wool: 1, grain: 1 },
+    city:       { grain: 2, ore: 3 },
+    dev:        { wool: 1, grain: 1, ore: 1 },
+  },
+  TERRAIN: { wood: 4, brick: 3, wool: 4, grain: 4, ore: 3, desert: 1 },
+  NUMBER_TOKENS: [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12],
+  PORTS: { generic: 4, specific: ['wood', 'brick', 'wool', 'grain', 'ore'] },
+  BANK_RATE: 4, GENERIC_PORT_RATE: 3, SPECIFIC_PORT_RATE: 2,
+  DEV_DECK: { knight: 14, vp: 5, road: 2, yop: 2, mono: 2, ward: 2, pickpocket: 2, blessing: 2 },
+  ROAD_BUILDING_ROADS: 2,
+  YOP_CARDS: 2,
+  LONGEST_ROAD_MIN: 5,
+  LARGEST_ARMY_MIN: 3,
+  AWARD_VP: 2,
+  DEFAULT_PLAYERS: 4,
+  PLAYER_COLORS: ['#e53935', '#1e88e5', '#fb8c00', '#8e24aa'],
+  PLAYER_COLOR_NAMES: ['Red', 'Blue', 'Orange', 'Purple'],
+  BOT_SPEED_MS: { slow: 1100, normal: 550, fast: 120 },
+  DEFAULT_BOT_SPEED: 'normal',
+  BOT: {
+    MAX_TRADES_PER_TURN: 3,
+    WARD_HAND: 7,                  // bot plays Ward when holding at least this many cards
+    PICKPOCKET_MIN_VICTIM_CARDS: 3,// bot plays Pickpocket when some opponent holds this many
+    KNIGHT_RANDOM: 0.25,           // chance per decision to play a Knight for no particular reason
+    MONO_MIN_GAIN: 3,              // bot plays Monopoly only if it would collect at least this many
+  },
+  HEX_SIZE: 60,
+  LOG_MAX: 300,
+};
+
+const RES = ['wood', 'brick', 'wool', 'grain', 'ore'];
+const TERRAIN_INFO = {
+  wood:   { color: '#2f7d32', icon: '🌲', label: 'Wood' },
+  brick:  { color: '#b5562b', icon: '🧱', label: 'Brick' },
+  wool:   { color: '#8bc34a', icon: '🐑', label: 'Wool' },
+  grain:  { color: '#e9c046', icon: '🌾', label: 'Grain' },
+  ore:    { color: '#7d8a9c', icon: '⛰️', label: 'Ore' },
+  desert: { color: '#dccb98', icon: '🏜️', label: 'Desert' },
+};
+const DEV_INFO = {
+  knight:     { name: 'Knight', desc: 'Move the robber and steal one card. Counts toward Largest Army.' },
+  vp:         { name: 'Victory Point', desc: '+1 VP, hidden from opponents. Counts automatically.' },
+  road:       { name: 'Road Building', desc: 'Place 2 free roads.' },
+  yop:        { name: 'Year of Plenty', desc: 'Take any 2 resources from the bank.' },
+  mono:       { name: 'Monopoly', desc: 'Name a resource; every opponent gives you all of theirs.' },
+  ward:       { name: 'Ward', desc: 'Immune to the next 7-discard. Used up when it blocks a discard.', anytime: true },
+  pickpocket: { name: 'Pickpocket', desc: 'Steal one random card from an opponent you choose.', anytime: true },
+  blessing:   { name: 'Blessing of the Harvest', desc: 'Name 2–12 (not 7). Next time it is rolled you get +1 resource per building of yours on those tiles.' },
+};
+const ANYTIME = new Set(['ward', 'pickpocket']);
+
+/* =====================================================================
+ * RNG (seeded, so simulations are reproducible)
+ * ===================================================================== */
+function makeRng(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let G = null;                                   // the single game-state object
+function rand() { return G ? G.rng() : Math.random(); }
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+/* =====================================================================
+ * Static geometry: 19 hexes (radius 2), 54 vertices, 72 edges
+ * ===================================================================== */
+const GEO = (function buildGeometry() {
+  const S = CONFIG.HEX_SIZE, R = 2, SQ = Math.sqrt(3);
+  const hexes = [], verts = [], edges = [], vmap = new Map(), emap = new Map();
+  const vid = (x, y) => {
+    const k = Math.round(x * 10) + ',' + Math.round(y * 10);
+    if (!vmap.has(k)) { vmap.set(k, verts.length); verts.push({ id: verts.length, x, y, hexes: [], edges: [], adj: [] }); }
+    return vmap.get(k);
+  };
+  for (let r = -R; r <= R; r++) for (let q = -R; q <= R; q++) {
+    if (Math.abs(q + r) > R) continue;
+    const h = { id: hexes.length, q, r, x: S * SQ * (q + r / 2), y: S * 1.5 * r, verts: [], edges: [], nbrs: [] };
+    for (let i = 0; i < 6; i++) {
+      const ang = Math.PI / 180 * (60 * i - 30);
+      h.verts.push(vid(h.x + S * Math.cos(ang), h.y + S * Math.sin(ang)));
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = Math.min(h.verts[i], h.verts[(i + 1) % 6]), b = Math.max(h.verts[i], h.verts[(i + 1) % 6]);
+      const k = a + '-' + b;
+      if (!emap.has(k)) { emap.set(k, edges.length); edges.push({ id: edges.length, a, b, hexes: [] }); }
+      const e = emap.get(k);
+      h.edges.push(e); edges[e].hexes.push(h.id);
+    }
+    h.verts.forEach(v => verts[v].hexes.push(h.id));
+    hexes.push(h);
+  }
+  for (const e of edges) {
+    verts[e.a].edges.push(e.id); verts[e.b].edges.push(e.id);
+    verts[e.a].adj.push(e.b); verts[e.b].adj.push(e.a);
+  }
+  for (const h of hexes) for (const o of hexes) {
+    const dq = h.q - o.q, dr = h.r - o.r;
+    if ((Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 === 1) h.nbrs.push(o.id);
+  }
+  const mid = e => ({ x: (verts[e.a].x + verts[e.b].x) / 2, y: (verts[e.a].y + verts[e.b].y) / 2 });
+  const coast = edges.filter(e => e.hexes.length === 1)
+    .sort((e1, e2) => { const m1 = mid(e1), m2 = mid(e2); return Math.atan2(m1.y, m1.x) - Math.atan2(m2.y, m2.x); })
+    .map(e => e.id);
+  return { hexes, verts, edges, coast };
+})();
+const otherEnd = (e, v) => (GEO.edges[e].a === v ? GEO.edges[e].b : GEO.edges[e].a);
+
+/* =====================================================================
+ * Game creation
+ * ===================================================================== */
+const isHot = n => n === 6 || n === 8;
+
+function generateBoard() {
+  const terr = [];
+  for (const [t, c] of Object.entries(CONFIG.TERRAIN)) for (let i = 0; i < c; i++) terr.push(t);
+  shuffle(terr);
+  G.hexes = GEO.hexes.map((h, i) => ({ terrain: terr[i], number: null }));
+  const land = G.hexes.map((h, i) => i).filter(i => G.hexes[i].terrain !== 'desert');
+  for (;;) { // reshuffle tokens until no 6/8 are adjacent
+    const tok = shuffle(CONFIG.NUMBER_TOKENS.slice());
+    G.hexes.forEach(h => { h.number = null; });
+    land.forEach((h, i) => { G.hexes[h].number = tok[i]; });
+    const ok = GEO.hexes.every(h => !isHot(G.hexes[h.id].number) || h.nbrs.every(j => !isHot(G.hexes[j].number)));
+    if (ok) break;
+  }
+  G.robber = G.hexes.findIndex(h => h.terrain === 'desert');
+  // ports: evenly spaced around the 30 coastal edges
+  const coast = GEO.coast, N = coast.length;
+  const types = shuffle([...Array(CONFIG.PORTS.generic).fill('any'), ...CONFIG.PORTS.specific]);
+  const off = Math.floor(rand() * N);
+  G.ports = []; G.portAt = Array(GEO.verts.length).fill(null);
+  types.forEach((type, i) => {
+    const e = coast[(off + Math.floor(i * N / types.length)) % N];
+    G.ports.push({ edge: e, type });
+    G.portAt[GEO.edges[e].a] = type; G.portAt[GEO.edges[e].b] = type;
+  });
+}
+
+function newGame(opts = {}) {
+  const n = Math.max(3, Math.min(4, opts.numPlayers || CONFIG.DEFAULT_PLAYERS));
+  const humanSeat = opts.humanSeat === undefined ? 0 : opts.humanSeat;
+  const seed = (opts.seed === undefined ? Math.floor(Math.random() * 4294967296) : opts.seed) >>> 0;
+  G = {
+    seed, rng: makeRng(seed), hexes: [], robber: 0, ports: [], portAt: [],
+    buildings: Array(GEO.verts.length).fill(null), roads: Array(GEO.edges.length).fill(null),
+    bank: {}, devDeck: [], players: [], turn: 0, turnNumber: 0, phase: 'setup', dice: null,
+    devPlayedThisTurn: false, pending: null, queue: [], setupOrder: [], setupIdx: 0,
+    longestRoad: null, largestArmy: null, winner: null, log: [], tradesThisTurn: 0,
+  };
+  RES.forEach(r => { G.bank[r] = CONFIG.BANK_PER_RESOURCE; });
+  generateBoard();
+  for (const [t, c] of Object.entries(CONFIG.DEV_DECK)) for (let i = 0; i < c; i++) G.devDeck.push(t);
+  shuffle(G.devDeck);
+  for (let i = 0; i < n; i++) {
+    const isBot = i !== humanSeat;
+    G.players.push({
+      id: i, name: isBot ? CONFIG.PLAYER_COLOR_NAMES[i] + ' Bot' : 'You', color: CONFIG.PLAYER_COLORS[i], isBot,
+      res: Object.fromEntries(RES.map(r => [r, 0])), dev: [], knights: 0,
+      pieces: { ...CONFIG.LIMITS }, wardActive: false, blessings: [],
+    });
+  }
+  const order = [...Array(n).keys()];
+  G.setupOrder = order.concat(order.slice().reverse());   // snake order
+  G.pending = { kind: 'setupSettle', pid: G.setupOrder[0] };
+  log(`New game: ${n} players (seed ${seed}). Setup in snake order.`);
+  return G;
+}
+
+/* =====================================================================
+ * Helpers & queries
+ * ===================================================================== */
+const P = id => G.players[id];
+const handSize = p => RES.reduce((s, r) => s + p.res[r], 0);
+const canAfford = (p, cost) => Object.keys(cost).every(r => p.res[r] >= cost[r]);
+function pay(p, cost) { for (const r in cost) { p.res[r] -= cost[r]; G.bank[r] += cost[r]; } }
+function giveFromBank(p, r, n) { const k = Math.min(n, G.bank[r]); G.bank[r] -= k; p.res[r] += k; return k; }
+function log(msg) { G.log.push(msg); if (G.log.length > CONFIG.LOG_MAX) G.log.shift(); }
+const resIcon = r => TERRAIN_INFO[r].icon;
+const poss = id => (P(id).isBot ? P(id).name + "'s" : 'Your');
+const verb = (id, v) => `${P(id).name} ${P(id).isBot ? v + 's' : v}`;
+const isHumanId = id => id !== null && id !== undefined && G.players[id] && !G.players[id].isBot;
+
+function actorId() {
+  if (!G || G.phase === 'over') return null;
+  return G.pending ? G.pending.pid : G.turn;
+}
+function isMyMainTurn(pid) { return G.phase === 'main' && G.turn === pid && !G.pending; }
+function nextPending() { G.pending = G.queue.length ? G.queue.shift() : null; }
+
+function distanceOk(v) { return !G.buildings[v] && GEO.verts[v].adj.every(u => !G.buildings[u]); }
+function touchesOwnRoad(pid, v) { return GEO.verts[v].edges.some(e => G.roads[e] === pid); }
+function canSettle(pid, v, setup) {
+  if (!distanceOk(v)) return false;
+  return setup ? GEO.verts[v].edges.some(e => G.roads[e] === null) : touchesOwnRoad(pid, v);
+}
+function canCity(pid, v) { const b = G.buildings[v]; return !!b && b.owner === pid && b.type === 'settlement'; }
+function canRoad(pid, e) {
+  if (G.roads[e] !== null) return false;
+  const ed = GEO.edges[e];
+  return [ed.a, ed.b].some(v => {
+    const b = G.buildings[v];
+    if (b) return b.owner === pid;                   // own building connects; opponent's blocks
+    return GEO.verts[v].edges.some(e2 => e2 !== e && G.roads[e2] === pid);
+  });
+}
+function validSettleSpots(pid, setup) { return GEO.verts.filter(v => canSettle(pid, v.id, setup)).map(v => v.id); }
+function validRoadEdges(pid) { return GEO.edges.filter(e => canRoad(pid, e.id)).map(e => e.id); }
+function validCitySpots(pid) { return GEO.verts.filter(v => canCity(pid, v.id)).map(v => v.id); }
+
+function tradeRate(pid, r) {
+  let rate = CONFIG.BANK_RATE;
+  G.buildings.forEach((b, v) => {
+    if (!b || b.owner !== pid || !G.portAt[v]) return;
+    if (G.portAt[v] === 'any') rate = Math.min(rate, CONFIG.GENERIC_PORT_RATE);
+    else if (G.portAt[v] === r) rate = Math.min(rate, CONFIG.SPECIFIC_PORT_RATE);
+  });
+  return rate;
+}
+
+function longestRoadFor(pid) {
+  let best = 0;
+  const used = new Set();
+  function dfs(v, len) {
+    if (len > best) best = len;
+    const b = G.buildings[v];
+    if (len > 0 && b && b.owner !== pid) return;     // opponent building breaks the road
+    for (const e of GEO.verts[v].edges) {
+      if (G.roads[e] !== pid || used.has(e)) continue;
+      used.add(e); dfs(otherEnd(e, v), len + 1); used.delete(e);
+    }
+  }
+  GEO.verts.forEach(v => { if (v.edges.some(e => G.roads[e] === pid)) dfs(v.id, 0); });
+  return best;
+}
+
+function vpOf(pid, includeHidden = true) {
+  let vp = 0;
+  G.buildings.forEach(b => { if (b && b.owner === pid) vp += b.type === 'city' ? 2 : 1; });
+  if (G.longestRoad === pid) vp += CONFIG.AWARD_VP;
+  if (G.largestArmy === pid) vp += CONFIG.AWARD_VP;
+  if (includeHidden) vp += P(pid).dev.filter(c => c.type === 'vp').length;
+  return vp;
+}
+
+function updateAwards() {
+  // Longest Road: holder keeps it on a tie; a broken road can hand it on or set it aside.
+  const lens = G.players.map(p => longestRoadFor(p.id));
+  const max = Math.max(...lens), holder = G.longestRoad;
+  if (!(holder !== null && lens[holder] >= max && lens[holder] >= CONFIG.LONGEST_ROAD_MIN)) {
+    let next = null;
+    if (max >= CONFIG.LONGEST_ROAD_MIN) {
+      const leaders = lens.map((l, i) => (l === max ? i : -1)).filter(i => i >= 0);
+      if (leaders.length === 1) next = leaders[0];
+    }
+    if (next !== holder) {
+      G.longestRoad = next;
+      log(next === null ? 'Longest Road is set aside.' : `${verb(next, 'take')} Longest Road (${max}).`);
+    }
+  }
+  // Largest Army: must strictly exceed the holder.
+  for (const p of G.players) {
+    if (p.knights < CONFIG.LARGEST_ARMY_MIN || G.largestArmy === p.id) continue;
+    if (G.largestArmy === null || p.knights > P(G.largestArmy).knights) {
+      G.largestArmy = p.id; log(`${verb(p.id, 'take')} Largest Army (${p.knights} knights).`);
+    }
+  }
+}
+
+/** Called at the end of every mutating action. */
+function post() {
+  if (G.phase === 'over') return;
+  updateAwards();
+  if (G.phase !== 'setup' && vpOf(G.turn) >= CONFIG.VP_TO_WIN) {
+    G.phase = 'over'; G.winner = G.turn; G.pending = null; G.queue = [];
+    log(`🏆 ${verb(G.turn, 'win')} with ${vpOf(G.turn)} VP!`);
+  }
+}
+
+/* =====================================================================
+ * Pure actions — each validates, mutates G, returns true/false.
+ * ===================================================================== */
+function doSetupSettle(pid, v) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'setupSettle' || pd.pid !== pid || !canSettle(pid, v, true)) return false;
+  const p = P(pid);
+  G.buildings[v] = { owner: pid, type: 'settlement' }; p.pieces.settlement--;
+  let got = '';
+  if (G.setupIdx >= G.players.length) {        // second settlement pays adjacent resources
+    for (const h of GEO.verts[v].hexes) {
+      const t = G.hexes[h].terrain;
+      if (t !== 'desert' && giveFromBank(p, t, 1)) got += resIcon(t);
+    }
+  }
+  log(`${p.name} placed a settlement${got ? ' and collected ' + got : ''}.`);
+  G.pending = { kind: 'setupRoad', pid, vertex: v };
+  post(); return true;
+}
+
+function doSetupRoad(pid, e) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'setupRoad' || pd.pid !== pid || G.roads[e] !== null) return false;
+  const ed = GEO.edges[e];
+  if (ed.a !== pd.vertex && ed.b !== pd.vertex) return false;
+  G.roads[e] = pid; P(pid).pieces.road--;
+  G.setupIdx++;
+  if (G.setupIdx < G.setupOrder.length) {
+    G.pending = { kind: 'setupSettle', pid: G.setupOrder[G.setupIdx] };
+  } else {
+    G.pending = null; G.phase = 'roll'; G.turn = 0; G.turnNumber = 1;
+    log(`Setup complete. ${verb(0, 'roll')} first.`);
+  }
+  post(); return true;
+}
+
+function rollDice(pid, forced) {
+  if (G.phase !== 'roll' || pid !== G.turn || G.pending) return false;
+  const d = forced || [1 + Math.floor(rand() * 6), 1 + Math.floor(rand() * 6)];
+  G.dice = d; G.phase = 'main';
+  const sum = d[0] + d[1];
+  log(`${P(pid).name} rolled ${sum}.`);
+  if (sum === 7) handleSeven(); else produce(sum);
+  post(); return true;
+}
+
+function handleSeven() {
+  const q = [];
+  for (let k = 0; k < G.players.length; k++) {
+    const p = P((G.turn + k) % G.players.length), n = handSize(p);
+    if (n <= CONFIG.DISCARD_OVER) continue;
+    if (p.wardActive) { p.wardActive = false; log(`🛡 ${poss(p.id)} Ward blocks the discard (Ward used up).`); continue; }
+    q.push({ kind: 'discard', pid: p.id, count: Math.floor(n / 2) });
+  }
+  q.push({ kind: 'robber', pid: G.turn });
+  G.queue = q; nextPending();
+}
+
+function produce(n) {
+  const gains = G.players.map(() => Object.fromEntries(RES.map(r => [r, 0])));
+  const tiles = GEO.hexes.filter(h => G.hexes[h.id].number === n && h.id !== G.robber);
+  for (const h of tiles) {
+    const r = G.hexes[h.id].terrain;
+    for (const v of h.verts) { const b = G.buildings[v]; if (b) gains[b.owner][r] += b.type === 'city' ? 2 : 1; }
+  }
+  for (const p of G.players) {                     // Blessing of the Harvest
+    const i = p.blessings.indexOf(n);
+    if (i < 0) continue;
+    p.blessings.splice(i, 1);
+    let bonus = 0;
+    for (const h of tiles) for (const v of h.verts) {
+      const b = G.buildings[v];
+      if (b && b.owner === p.id) { gains[p.id][G.hexes[h.id].terrain] += 1; bonus++; }
+    }
+    log(`✨ ${poss(p.id)} Blessing on ${n} triggers: +${bonus} bonus.`);
+  }
+  const got = G.players.map(() => '');
+  for (const r of RES) {
+    const total = gains.reduce((s, g) => s + g[r], 0);
+    if (!total) continue;
+    if (total > G.bank[r]) { log(`Bank shortage: ${total} ${r} needed, ${G.bank[r]} left — nobody collects ${r}.`); continue; }
+    G.players.forEach((p, i) => {
+      const k = gains[i][r]; if (!k) return;
+      p.res[r] += k; G.bank[r] -= k; got[i] += resIcon(r).repeat(k);
+    });
+  }
+  const parts = G.players.map((p, i) => (got[i] ? `${p.name} ${got[i]}` : '')).filter(Boolean);
+  if (parts.length) log('  Production: ' + parts.join(', '));
+}
+
+function doDiscard(pid, sel) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'discard' || pd.pid !== pid) return false;
+  const p = P(pid);
+  let total = 0;
+  for (const r of RES) {
+    const k = sel[r] || 0;
+    if (!Number.isInteger(k) || k < 0 || k > p.res[r]) return false;
+    total += k;
+  }
+  if (total !== pd.count) return false;
+  for (const r of RES) { const k = sel[r] || 0; p.res[r] -= k; G.bank[r] += k; }
+  log(`${p.name} discarded ${total} cards.`);
+  nextPending(); post(); return true;
+}
+
+function robberVictims(pid, h) {
+  const set = new Set();
+  for (const v of GEO.hexes[h].verts) {
+    const b = G.buildings[v];
+    if (b && b.owner !== pid && handSize(P(b.owner)) > 0) set.add(b.owner);
+  }
+  return [...set];
+}
+
+function stealFrom(thief, victim) {
+  const v = P(victim), pool = [];
+  RES.forEach(r => { for (let i = 0; i < v.res[r]; i++) pool.push(r); });
+  if (!pool.length) return null;
+  const r = pool[Math.floor(rand() * pool.length)];
+  v.res[r]--; P(thief).res[r]++;
+  const shown = isHumanId(thief) || isHumanId(victim) ? ` (${resIcon(r)})` : '';
+  log(`${P(thief).name} stole a card from ${v.name}${shown}.`);
+  return r;
+}
+
+function moveRobber(pid, h) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'robber' || pd.pid !== pid) return false;
+  if (!Number.isInteger(h) || h < 0 || h >= GEO.hexes.length || h === G.robber) return false;
+  G.robber = h;
+  log(`${P(pid).name} moved the robber to a ${TERRAIN_INFO[G.hexes[h].terrain].label} ${G.hexes[h].number || ''}.`);
+  const victims = robberVictims(pid, h);
+  if (victims.length === 0) nextPending();
+  else if (victims.length === 1) { stealFrom(pid, victims[0]); nextPending(); }
+  else G.pending = { kind: 'steal', pid, victims };
+  post(); return true;
+}
+
+function doSteal(pid, victim) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'steal' || pd.pid !== pid || !pd.victims.includes(victim)) return false;
+  stealFrom(pid, victim);
+  nextPending(); post(); return true;
+}
+
+function doRoad(pid, e) {
+  const pd = G.pending, p = P(pid);
+  const free = !!pd && pd.kind === 'freeRoads' && pd.pid === pid;
+  if (!free && !isMyMainTurn(pid)) return false;
+  if (!canRoad(pid, e) || p.pieces.road <= 0) return false;
+  if (!free && !canAfford(p, CONFIG.COSTS.road)) return false;
+  if (!free) pay(p, CONFIG.COSTS.road);
+  G.roads[e] = pid; p.pieces.road--;
+  log(`${p.name} built a road${free ? ' (free)' : ''}.`);
+  if (free) {
+    pd.left--;
+    if (pd.left <= 0 || p.pieces.road <= 0 || !validRoadEdges(pid).length) nextPending();
+  }
+  post(); return true;
+}
+
+function doSettle(pid, v) {
+  const p = P(pid);
+  if (!isMyMainTurn(pid) || p.pieces.settlement <= 0 || !canAfford(p, CONFIG.COSTS.settlement) || !canSettle(pid, v, false)) return false;
+  pay(p, CONFIG.COSTS.settlement);
+  G.buildings[v] = { owner: pid, type: 'settlement' }; p.pieces.settlement--;
+  log(`${p.name} built a settlement.`);
+  post(); return true;
+}
+
+function doCity(pid, v) {
+  const p = P(pid);
+  if (!isMyMainTurn(pid) || p.pieces.city <= 0 || !canAfford(p, CONFIG.COSTS.city) || !canCity(pid, v)) return false;
+  pay(p, CONFIG.COSTS.city);
+  G.buildings[v] = { owner: pid, type: 'city' }; p.pieces.city--; p.pieces.settlement++;
+  log(`${p.name} upgraded to a city.`);
+  post(); return true;
+}
+
+function buyDev(pid) {
+  const p = P(pid);
+  if (!isMyMainTurn(pid) || !G.devDeck.length || !canAfford(p, CONFIG.COSTS.dev)) return false;
+  pay(p, CONFIG.COSTS.dev);
+  const type = G.devDeck.pop();
+  p.dev.push({ type, bought: G.turnNumber });
+  log(`${p.name} bought a development card${isHumanId(pid) ? ` (${DEV_INFO[type].name})` : ''}.`);
+  post(); return true;
+}
+
+function bankTrade(pid, give, get) {
+  const p = P(pid);
+  if (!isMyMainTurn(pid) || !RES.includes(give) || !RES.includes(get) || give === get) return false;
+  const rate = tradeRate(pid, give);
+  if (p.res[give] < rate || G.bank[get] < 1) return false;
+  p.res[give] -= rate; G.bank[give] += rate;
+  p.res[get] += 1; G.bank[get] -= 1;
+  G.tradesThisTurn++;
+  log(`${p.name} traded ${rate}${resIcon(give)} → 1${resIcon(get)} with the bank.`);
+  post(); return true;
+}
+
+function endTurn(pid) {
+  if (!isMyMainTurn(pid)) return false;
+  G.turn = (G.turn + 1) % G.players.length;
+  G.turnNumber++; G.phase = 'roll'; G.devPlayedThisTurn = false; G.tradesThisTurn = 0; G.dice = null;
+  log(`— ${poss(G.turn)} turn —`);
+  post(); return true;
+}
+
+/* ---------- Development cards ---------- */
+function playableCard(p, type) { return p.dev.find(c => c.type === type && c.bought !== G.turnNumber); }
+
+function canPlayDev(pid, type) {
+  if (!G || G.phase === 'over' || G.phase === 'setup' || G.pending) return false;
+  const p = P(pid);
+  if (type === 'vp' || !playableCard(p, type)) return false;
+  if (ANYTIME.has(type)) {
+    if (type === 'ward') return !p.wardActive;
+    return G.players.some(o => o.id !== pid && handSize(o) > 0);   // pickpocket
+  }
+  if (G.turn !== pid || G.devPlayedThisTurn) return false;
+  if (type === 'road') return p.pieces.road > 0 && validRoadEdges(pid).length > 0;
+  if (type === 'yop') return RES.some(r => G.bank[r] > 0);
+  return true;
+}
+
+function playDev(pid, type) {
+  if (!canPlayDev(pid, type)) return false;
+  const p = P(pid);
+  p.dev.splice(p.dev.indexOf(playableCard(p, type)), 1);
+  if (!ANYTIME.has(type)) G.devPlayedThisTurn = true;
+  log(`${p.name} played ${DEV_INFO[type].name}.`);
+  switch (type) {
+    case 'knight': p.knights++; G.queue = [{ kind: 'robber', pid }]; nextPending(); break;
+    case 'road': G.pending = { kind: 'freeRoads', pid, left: Math.min(CONFIG.ROAD_BUILDING_ROADS, p.pieces.road) }; break;
+    case 'yop': G.pending = { kind: 'yop', pid, left: CONFIG.YOP_CARDS }; break;
+    case 'mono': G.pending = { kind: 'mono', pid }; break;
+    case 'blessing': G.pending = { kind: 'blessing', pid }; break;
+    case 'ward': p.wardActive = true; break;
+    case 'pickpocket': G.pending = { kind: 'pickpocket', pid, victims: G.players.filter(o => o.id !== pid && handSize(o) > 0).map(o => o.id) }; break;
+  }
+  post(); return true;
+}
+
+function skipFreeRoads(pid) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'freeRoads' || pd.pid !== pid) return false;
+  log(`${P(pid).name} skipped the remaining free road(s).`);
+  nextPending(); post(); return true;
+}
+
+function chooseYop(pid, r) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'yop' || pd.pid !== pid || !RES.includes(r) || G.bank[r] <= 0) return false;
+  giveFromBank(P(pid), r, 1); pd.left--;
+  log(`${P(pid).name} took ${resIcon(r)} (Year of Plenty).`);
+  if (pd.left <= 0 || RES.every(x => G.bank[x] === 0)) nextPending();
+  post(); return true;
+}
+
+function chooseMono(pid, r) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'mono' || pd.pid !== pid || !RES.includes(r)) return false;
+  let n = 0;
+  for (const o of G.players) if (o.id !== pid) { n += o.res[r]; P(pid).res[r] += o.res[r]; o.res[r] = 0; }
+  log(`${P(pid).name} monopolised ${resIcon(r)} and collected ${n}.`);
+  nextPending(); post(); return true;
+}
+
+function chooseBlessing(pid, n) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'blessing' || pd.pid !== pid || !Number.isInteger(n) || n < 2 || n > 12 || n === 7) return false;
+  P(pid).blessings.push(n);
+  log(`${P(pid).name} blessed the number ${n}.`);
+  nextPending(); post(); return true;
+}
+
+function choosePickpocket(pid, victim) {
+  const pd = G.pending;
+  if (!pd || pd.kind !== 'pickpocket' || pd.pid !== pid || !pd.victims.includes(victim)) return false;
+  stealFrom(pid, victim);
+  nextPending(); post(); return true;
+}
+
+/* =====================================================================
+ * Bots — botAct(pid) performs exactly one action and returns true.
+ * ===================================================================== */
+const pips = n => (n ? 6 - Math.abs(7 - n) : 0);
+function vertexScore(v) {
+  let s = 0; const kinds = new Set();
+  for (const h of GEO.verts[v].hexes) {
+    const hx = G.hexes[h];
+    if (hx.terrain === 'desert') continue;
+    s += pips(hx.number) * (h === G.robber ? 0.4 : 1);
+    kinds.add(hx.terrain);
+  }
+  return s + kinds.size * 0.6 + (G.portAt[v] ? 0.8 : 0);
+}
+const argmax = (arr, f) => { let best = null, bs = -Infinity; for (const x of arr) { const s = f(x); if (s > bs) { bs = s; best = x; } } return best; };
+function robberOnMe(pid) { return GEO.hexes[G.robber].verts.some(v => G.buildings[v] && G.buildings[v].owner === pid); }
+const richest = ids => argmax(ids, id => handSize(P(id)) + rand() * 0.1);
+
+function roadScore(pid, e) {
+  let best = 0;
+  for (const w of [GEO.edges[e].a, GEO.edges[e].b]) {
+    const b = G.buildings[w];
+    const attached = (b && b.owner === pid) || GEO.verts[w].edges.some(x => x !== e && G.roads[x] === pid);
+    if (attached) continue;                        // only look beyond the new end
+    if (distanceOk(w)) best = Math.max(best, 100 + vertexScore(w));
+    for (const e2 of GEO.verts[w].edges) {
+      if (e2 === e || G.roads[e2] !== null) continue;
+      const u = otherEnd(e2, w);
+      if (distanceOk(u)) best = Math.max(best, 40 + vertexScore(u));
+    }
+  }
+  return best + rand() * 0.5;
+}
+function botBestRoad(pid) { return argmax(validRoadEdges(pid), e => roadScore(pid, e)); }
+
+const missingFor = (p, cost) => RES.reduce((s, r) => s + Math.max(0, (cost[r] || 0) - p.res[r]), 0);
+function botGoal(pid) {
+  const p = P(pid), cands = [];
+  if (p.pieces.city > 0 && validCitySpots(pid).length) cands.push('city');
+  if (p.pieces.settlement > 0 && validSettleSpots(pid).length) cands.push('settlement');
+  if (cands.length) return cands.sort((a, b) => missingFor(p, CONFIG.COSTS[a]) - missingFor(p, CONFIG.COSTS[b]))[0];
+  if (p.pieces.road > 0 && validRoadEdges(pid).length) return 'road';
+  if (G.devDeck.length) return 'dev';
+  return null;
+}
+function botTradeChoice(pid) {
+  if (G.tradesThisTurn >= CONFIG.BOT.MAX_TRADES_PER_TURN) return null;
+  const p = P(pid), goal = botGoal(pid);
+  if (!goal) return null;
+  const cost = CONFIG.COSTS[goal];
+  const need = RES.filter(r => (cost[r] || 0) > p.res[r] && G.bank[r] > 0)
+    .sort((a, b) => ((cost[b] || 0) - p.res[b]) - ((cost[a] || 0) - p.res[a]));
+  if (!need.length) return null;
+  let give = null, bestSur = -1;
+  for (const r of RES) {
+    if (need.includes(r)) continue;
+    const sur = p.res[r] - (cost[r] || 0) - tradeRate(pid, r);
+    if (sur >= 0 && sur > bestSur) { give = r; bestSur = sur; }
+  }
+  return give ? { give, get: need[0] } : null;
+}
+function bestMonoGain(pid) {
+  const r = argmax(RES, x => G.players.reduce((s, o) => s + (o.id !== pid ? o.res[x] : 0), 0));
+  return { r, n: G.players.reduce((s, o) => s + (o.id !== pid ? o.res[r] : 0), 0) };
+}
+function botBlessingNumber(pid) {
+  let best = { n: 6, score: 0 };
+  for (let n = 2; n <= 12; n++) {
+    if (n === 7) continue;
+    let s = 0;
+    for (const h of GEO.hexes) {
+      if (G.hexes[h.id].number !== n || h.id === G.robber) continue;
+      for (const v of h.verts) if (G.buildings[v] && G.buildings[v].owner === pid) s += pips(n);
+    }
+    if (s > best.score) best = { n, score: s };
+  }
+  return best;
+}
+function botYopPick(pid) {
+  const p = P(pid), goal = botGoal(pid), cost = goal ? CONFIG.COSTS[goal] : {};
+  const avail = RES.filter(r => G.bank[r] > 0);
+  return argmax(avail, r => Math.max(0, (cost[r] || 0) - p.res[r]) * 10 - p.res[r] + rand() * 0.1);
+}
+function botRobberHex(pid) {
+  return argmax(GEO.hexes.filter(h => h.id !== G.robber).map(h => h.id), h => {
+    let s = pips(G.hexes[h].number) * 0.1 + rand() * 0.01;
+    for (const v of GEO.hexes[h].verts) {
+      const b = G.buildings[v]; if (!b) continue;
+      const w = b.type === 'city' ? 2 : 1;
+      s += b.owner === pid ? -6 * w : 3 * w + (handSize(P(b.owner)) > 0 ? 0.5 : 0);
+    }
+    return s;
+  });
+}
+function botDiscardSel(p, count) {
+  const sel = Object.fromEntries(RES.map(r => [r, 0]));
+  for (let i = 0; i < count; i++) sel[argmax(RES, r => p.res[r] - sel[r])]++;
+  return sel;
+}
+function botChooseDev(pid) {
+  if (G.devPlayedThisTurn) return null;
+  const p = P(pid);
+  if (canPlayDev(pid, 'knight')) {
+    const armyChase = p.knights + 1 >= CONFIG.LARGEST_ARMY_MIN && G.largestArmy !== pid &&
+      (G.largestArmy === null || p.knights + 1 > P(G.largestArmy).knights);
+    if (robberOnMe(pid) || armyChase || rand() < CONFIG.BOT.KNIGHT_RANDOM) return 'knight';
+  }
+  if (canPlayDev(pid, 'yop')) return 'yop';
+  if (canPlayDev(pid, 'mono') && bestMonoGain(pid).n >= CONFIG.BOT.MONO_MIN_GAIN) return 'mono';
+  if (canPlayDev(pid, 'road') && !validSettleSpots(pid).length) return 'road';
+  if (canPlayDev(pid, 'blessing') && botBlessingNumber(pid).score > 0) return 'blessing';
+  return null;
+}
+
+function botResolve(pid, pd) {
+  const p = P(pid);
+  switch (pd.kind) {
+    case 'setupSettle': return doSetupSettle(pid, argmax(validSettleSpots(pid, true), v => vertexScore(v) + rand() * 0.1));
+    case 'setupRoad': return doSetupRoad(pid, argmax(GEO.verts[pd.vertex].edges.filter(e => G.roads[e] === null), e => roadScore(pid, e)));
+    case 'discard': return doDiscard(pid, botDiscardSel(p, pd.count));
+    case 'robber': return moveRobber(pid, botRobberHex(pid));
+    case 'steal': return doSteal(pid, richest(pd.victims));
+    case 'freeRoads': { const e = botBestRoad(pid); return e === null ? skipFreeRoads(pid) : doRoad(pid, e); }
+    case 'yop': return chooseYop(pid, botYopPick(pid));
+    case 'mono': return chooseMono(pid, bestMonoGain(pid).r);
+    case 'blessing': return chooseBlessing(pid, botBlessingNumber(pid).n);
+    case 'pickpocket': return choosePickpocket(pid, richest(pd.victims));
+  }
+  return false;
+}
+
+function botTurnStep(pid) {
+  const p = P(pid);
+  if (G.phase === 'roll') {
+    if (robberOnMe(pid) && canPlayDev(pid, 'knight')) return playDev(pid, 'knight');
+    return rollDice(pid);
+  }
+  if (canPlayDev(pid, 'ward') && handSize(p) >= CONFIG.BOT.WARD_HAND) return playDev(pid, 'ward');
+  if (canPlayDev(pid, 'pickpocket') && G.players.some(o => o.id !== pid && handSize(o) >= CONFIG.BOT.PICKPOCKET_MIN_VICTIM_CARDS)) return playDev(pid, 'pickpocket');
+  const dev = botChooseDev(pid);
+  if (dev) return playDev(pid, dev);
+  const C = CONFIG.COSTS;
+  if (p.pieces.city > 0 && canAfford(p, C.city)) { const v = argmax(validCitySpots(pid), vertexScore); if (v !== null) return doCity(pid, v); }
+  const spots = validSettleSpots(pid);
+  if (p.pieces.settlement > 0 && canAfford(p, C.settlement) && spots.length) return doSettle(pid, argmax(spots, vertexScore));
+  if (G.devDeck.length && canAfford(p, C.dev)) return buyDev(pid);
+  if (p.pieces.road > 0 && canAfford(p, C.road) && !(spots.length && p.pieces.settlement > 0)) {
+    const e = botBestRoad(pid); if (e !== null) return doRoad(pid, e);
+  }
+  const t = botTradeChoice(pid);
+  if (t) return bankTrade(pid, t.give, t.get);
+  return endTurn(pid);
+}
+
+function botAct(pid) {
+  if (G.phase === 'over') return false;
+  return G.pending ? botResolve(pid, G.pending) : botTurnStep(pid);
+}
+
+/* =====================================================================
+ * UI (browser only)
+ * ===================================================================== */
+const UI = { mode: null, speed: CONFIG.DEFAULT_BOT_SPEED, timer: null, human: 0, discardSel: null, discardKey: null, logLen: -1, tradeGive: 'wood', tradeGet: 'brick' };
+const $ = id => document.getElementById(id);
+const DICE = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+function modeAvailable(mode) {
+  const h = UI.human, p = P(h);
+  if (!isMyMainTurn(h)) return false;
+  if (mode === 'road') return p.pieces.road > 0 && canAfford(p, CONFIG.COSTS.road) && validRoadEdges(h).length > 0;
+  if (mode === 'settlement') return p.pieces.settlement > 0 && canAfford(p, CONFIG.COSTS.settlement) && validSettleSpots(h).length > 0;
+  if (mode === 'city') return p.pieces.city > 0 && canAfford(p, CONFIG.COSTS.city) && validCitySpots(h).length > 0;
+  return false;
+}
+
+function humanTargets() {
+  const h = UI.human, pd = G.pending, t = { verts: [], edges: [], hexes: [] };
+  if (G.phase === 'over') return t;
+  if (pd) {
+    if (pd.pid !== h) return t;
+    if (pd.kind === 'setupSettle') t.verts = validSettleSpots(h, true);
+    else if (pd.kind === 'setupRoad') t.edges = GEO.verts[pd.vertex].edges.filter(e => G.roads[e] === null);
+    else if (pd.kind === 'freeRoads') t.edges = validRoadEdges(h);
+    else if (pd.kind === 'robber') t.hexes = GEO.hexes.filter(x => x.id !== G.robber).map(x => x.id);
+  } else if (UI.mode === 'road') t.edges = validRoadEdges(h);
+  else if (UI.mode === 'settlement') t.verts = validSettleSpots(h);
+  else if (UI.mode === 'city') t.verts = validCitySpots(h);
+  return t;
+}
+
+function renderBoard() {
+  const t = humanTargets(), S = CONFIG.HEX_SIZE, out = [];
+  const pts = arr => arr.map(v => `${GEO.verts[v].x.toFixed(1)},${GEO.verts[v].y.toFixed(1)}`).join(' ');
+  // sand rim
+  out.push(`<circle cx="0" cy="0" r="${S * 4.75}" fill="#2a63a6" />`);
+  // ports
+  for (const port of G.ports) {
+    const ed = GEO.edges[port.edge], hx = GEO.hexes[ed.hexes[0]];
+    const mx = (GEO.verts[ed.a].x + GEO.verts[ed.b].x) / 2, my = (GEO.verts[ed.a].y + GEO.verts[ed.b].y) / 2;
+    const px = hx.x + (mx - hx.x) * 1.75, py = hx.y + (my - hx.y) * 1.75;
+    for (const v of [ed.a, ed.b]) out.push(`<line x1="${GEO.verts[v].x}" y1="${GEO.verts[v].y}" x2="${px}" y2="${py}" stroke="#d9c38f" stroke-width="4" />`);
+    const generic = port.type === 'any';
+    out.push(`<g><title>${generic ? '3:1 any resource' : '2:1 ' + TERRAIN_INFO[port.type].label}</title><circle cx="${px}" cy="${py}" r="17" fill="#f8fafc" stroke="#6b5b3e" stroke-width="1.5" />`
+      + `<text class="portlbl" x="${px}" y="${py - (generic ? 0 : 6)}">${generic ? '3:1' : '2:1'}</text>`
+      + (generic ? '' : `<text class="icon" style="font-size:11px" x="${px}" y="${py + 7}">${resIcon(port.type)}</text>`) + `</g>`);
+  }
+  // hexes
+  for (const h of GEO.hexes) {
+    const hx = G.hexes[h.id], info = TERRAIN_INFO[hx.terrain], tgt = t.hexes.includes(h.id);
+    out.push(`<polygon class="hex${tgt ? ' hex-target' : ''}" data-hex="${h.id}" points="${pts(h.verts)}" fill="${info.color}"><title>${info.label}${hx.number ? ' ' + hx.number : ''}</title></polygon>`);
+    out.push(`<text class="icon" x="${h.x}" y="${h.y - 32}" pointer-events="none">${info.icon}</text>`);
+    if (hx.number) {
+      const n = hx.number, k = pips(n);
+      out.push(`<g pointer-events="none"><circle class="tok" cx="${h.x}" cy="${h.y}" r="18" /><text class="num${isHot(n) ? ' hot' : ''}" x="${h.x}" y="${h.y - 2}">${n}</text>`);
+      for (let i = 0; i < k; i++) out.push(`<circle cx="${h.x + (i - (k - 1) / 2) * 4.5}" cy="${h.y + 11}" r="1.6" fill="${isHot(n) ? '#c62828' : '#1f2937'}" />`);
+      out.push('</g>');
+    }
+    if (h.id === G.robber) {
+      const rx = h.x + (hx.number ? -30 : 0), ry = h.y + 8;
+      out.push(`<g pointer-events="none"><ellipse cx="${rx}" cy="${ry + 8}" rx="10" ry="12" fill="#1f2937" stroke="#000" /><circle cx="${rx}" cy="${ry - 8}" r="7" fill="#1f2937" stroke="#000" /></g>`);
+    }
+  }
+  // roads
+  GEO.edges.forEach(e => {
+    const o = G.roads[e.id]; if (o === null) return;
+    const a = GEO.verts[e.a], b = GEO.verts[e.b];
+    out.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#111" stroke-width="10" stroke-linecap="round" />`);
+    out.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${P(o).color}" stroke-width="6.5" stroke-linecap="round" />`);
+  });
+  for (const e of t.edges) {
+    const a = GEO.verts[GEO.edges[e].a], b = GEO.verts[GEO.edges[e].b];
+    const ax = a.x + (b.x - a.x) * 0.15, ay = a.y + (b.y - a.y) * 0.15, bx = b.x - (b.x - a.x) * 0.15, by = b.y - (b.y - a.y) * 0.15;
+    out.push(`<g class="edge-target" data-edge="${e}"><line class="target-edge" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" />`
+      + `<circle class="target" cx="${(a.x + b.x) / 2}" cy="${(a.y + b.y) / 2}" r="6" /></g>`);
+  }
+  // buildings
+  G.buildings.forEach((b, v) => {
+    if (!b) return;
+    const { x, y } = GEO.verts[v], c = P(b.owner).color;
+    const shape = b.type === 'city'
+      ? [[-12, 9], [12, 9], [12, -5], [2, -5], [2, -11], [-5, -17], [-12, -11]]
+      : [[-8, 7], [8, 7], [8, -3], [0, -11], [-8, -3]];
+    out.push(`<polygon points="${shape.map(([dx, dy]) => `${x + dx},${y + dy}`).join(' ')}" fill="${c}" stroke="#111" stroke-width="1.8" />`);
+  });
+  for (const v of t.verts) out.push(`<circle class="target" data-vert="${v}" cx="${GEO.verts[v].x}" cy="${GEO.verts[v].y}" r="9" />`);
+  $('board').innerHTML = out.join('');
+}
+
+function promptHTML() {
+  const h = UI.human, pd = G.pending;
+  const btn = (act, arg, label, dis) => `<button data-act="${act}" data-arg="${arg}"${dis ? ' disabled' : ''}>${label}</button>`;
+  const msg = s => `<span class="msg">${s}</span>`;
+  if (G.phase === 'over') return msg(`🏆 ${P(G.winner).name} won!`) + btn('newgame', '', 'Play again');
+  if (pd && pd.pid !== h) return msg(`Waiting for ${P(pd.pid).name}…`);
+  if (pd) {
+    switch (pd.kind) {
+      case 'setupSettle': return msg(`Place your ${G.setupIdx < G.players.length ? 'first' : 'second'} settlement — click a glowing intersection.${G.setupIdx < G.players.length ? '' : ' It pays its adjacent resources.'}`);
+      case 'setupRoad': return msg('Place a road next to that settlement.');
+      case 'discard': return msg(`Discard ${pd.count} cards.`);
+      case 'robber': return msg('Move the robber — click a glowing hex.');
+      case 'steal': return msg('Steal from:') + pd.victims.map(v => btn('steal', v, `${P(v).name} (${handSize(P(v))})`)).join('');
+      case 'freeRoads': return msg(`Place a free road (${pd.left} left).`) + btn('skiproads', '', 'Skip');
+      case 'yop': return msg(`Year of Plenty — take a resource (${pd.left} left):`) + RES.map(r => btn('yop', r, `${resIcon(r)} ${TERRAIN_INFO[r].label}`, G.bank[r] <= 0)).join('');
+      case 'mono': return msg('Monopoly — name a resource:') + RES.map(r => btn('mono', r, `${resIcon(r)} ${TERRAIN_INFO[r].label}`)).join('');
+      case 'blessing': return msg('Blessing — name a number:') + [2, 3, 4, 5, 6, 8, 9, 10, 11, 12].map(n => btn('bless', n, n)).join('');
+      case 'pickpocket': return msg('Pickpocket — steal from:') + pd.victims.map(v => btn('pick', v, `${P(v).name} (${handSize(P(v))})`)).join('');
+    }
+  }
+  if (G.turn === h) {
+    if (G.phase === 'roll') return msg('Your turn — roll the dice (you may play a development card first).');
+    if (UI.mode) return msg(`Build ${UI.mode}: click a glowing spot. Esc cancels.`);
+    return msg('Build, trade, play a card, or end your turn.');
+  }
+  const any = ['ward', 'pickpocket'].some(t => canPlayDev(h, t));
+  return msg(`${P(G.turn).name} is playing…${any ? ' You can play an ANY TIME card now.' : ''}`);
+}
+
+function renderTop() {
+  const statusEl = $('status');
+  if (G.phase === 'setup') statusEl.textContent = `Setup · ${P(G.pending.pid).name} placing`;
+  else if (G.phase === 'over') statusEl.textContent = `Game over · turn ${G.turnNumber}`;
+  else statusEl.textContent = `Turn ${G.turnNumber} · ${P(G.turn).name}${G.phase === 'roll' ? ' (to roll)' : ''}`;
+  $('dice').innerHTML = G.dice ? `${DICE[G.dice[0] - 1]}${DICE[G.dice[1] - 1]} <small>= ${G.dice[0] + G.dice[1]}</small>` : '<small>— no roll —</small>';
+  $('prompt').innerHTML = promptHTML();
+}
+
+function renderPlayers() {
+  const cur = G.phase === 'setup' ? G.pending && G.pending.pid : G.turn;
+  $('players').innerHTML = G.players.map(p => {
+    const me = p.id === UI.human, pub = vpOf(p.id, false), full = vpOf(p.id, true);
+    const badges = [];
+    if (G.longestRoad === p.id) badges.push('<span class="badge award">🛣 Longest Road +2</span>');
+    if (G.largestArmy === p.id) badges.push('<span class="badge award">⚔ Largest Army +2</span>');
+    if (p.wardActive) badges.push('<span class="badge ward">🛡 Ward active</span>');
+    else if (me) badges.push('<span class="badge dim">🛡 Ward: none</span>');
+    p.blessings.forEach(n => badges.push(`<span class="badge">✨ Blessed ${n}</span>`));
+    return `<div class="pl${cur === p.id ? ' cur' : ''}" style="--pc:${p.color}">
+      <div class="pl-head"><span class="sw"></span><b>${p.name}</b><span class="vp">${me ? full : pub} VP${me && full > pub ? ` <small>(${full - pub} hidden)</small>` : ''}</span></div>
+      <div class="pl-stats">🃏 ${handSize(p)} cards · 📜 ${p.dev.length} dev · ⚔ ${p.knights} knights · 🛣 ${longestRoadFor(p.id)}</div>
+      <div>${badges.join('')}</div></div>`;
+  }).join('');
+}
+
+function renderHand() {
+  const p = P(UI.human);
+  $('hand').innerHTML = RES.map(r => `<span class="res" title="${TERRAIN_INFO[r].label}">${resIcon(r)}<b>${p.res[r]}</b></span>`).join('')
+    + `<span class="pieces">Pieces left: ${p.pieces.road} roads · ${p.pieces.settlement} settlements · ${p.pieces.city} cities</span>`;
+}
+
+function renderActions() {
+  const h = UI.human, p = P(h), my = isMyMainTurn(h);
+  $('btnRoll').disabled = !(G.phase === 'roll' && G.turn === h && !G.pending);
+  for (const m of ['road', 'settlement', 'city']) {
+    const b = $('btn' + m[0].toUpperCase() + m.slice(1));
+    b.disabled = !modeAvailable(m); b.classList.toggle('active', UI.mode === m);
+  }
+  $('btnDev').disabled = !(my && G.devDeck.length && canAfford(p, CONFIG.COSTS.dev));
+  $('btnDev').title = `${G.devDeck.length} cards left in deck`;
+  $('btnEnd').disabled = !my;
+}
+
+function renderDev() {
+  const h = UI.human, p = P(h), types = [...new Set(p.dev.map(c => c.type))];
+  if (!types.length) { $('devHand').innerHTML = '<span style="color:var(--muted)">No development cards.</span>'; return; }
+  $('devHand').innerHTML = types.map(t => {
+    const cards = p.dev.filter(c => c.type === t), fresh = cards.filter(c => c.bought === G.turnNumber).length;
+    const info = DEV_INFO[t];
+    return `<div class="dev"><div class="t">${info.name} ×${cards.length}${info.anytime ? '<span class="tag">ANY TIME</span>' : ''}${fresh ? `<span class="tag new">${fresh} new</span>` : ''}</div>
+      <div class="d">${info.desc}</div>
+      ${t === 'vp' ? '<small style="color:var(--muted)">Counts automatically</small>' : `<button data-act="play" data-arg="${t}"${canPlayDev(h, t) ? '' : ' disabled'}>Play</button>`}</div>`;
+  }).join('');
+}
+
+function renderTrade() {
+  const h = UI.human, p = P(h);
+  const fill = (sel, which) => {
+    if (!sel.options.length) RES.forEach(r => sel.add(new Option('', r)));
+    [...sel.options].forEach(o => {
+      o.textContent = which === 'give'
+        ? `${resIcon(o.value)} ${TERRAIN_INFO[o.value].label} — ${tradeRate(h, o.value)}:1 (have ${p.res[o.value]})`
+        : `${resIcon(o.value)} ${TERRAIN_INFO[o.value].label} (bank ${G.bank[o.value]})`;
+    });
+  };
+  fill($('tradeGive'), 'give'); fill($('tradeGet'), 'get');
+  $('tradeGive').value = UI.tradeGive; $('tradeGet').value = UI.tradeGet;
+  const rate = tradeRate(h, UI.tradeGive);
+  $('tradeRate').textContent = `Rate ${rate}:1 — give ${rate} ${TERRAIN_INFO[UI.tradeGive].label}, get 1 ${TERRAIN_INFO[UI.tradeGet].label}.`;
+  $('btnTrade').disabled = !(isMyMainTurn(h) && UI.tradeGive !== UI.tradeGet && p.res[UI.tradeGive] >= rate && G.bank[UI.tradeGet] > 0);
+}
+
+function renderLog() {
+  const el = $('log');
+  if (UI.logLen === G.log.length && el.childElementCount === G.log.length) return;
+  el.innerHTML = G.log.map(s => `<div>${s}</div>`).join('');
+  el.scrollTop = el.scrollHeight; UI.logLen = G.log.length;
+}
+
+function renderModal() {
+  const pd = G.pending, m = $('modal');
+  if (!(pd && pd.kind === 'discard' && pd.pid === UI.human)) { m.hidden = true; m.innerHTML = ''; return; }
+  const p = P(UI.human), key = `${G.turnNumber}-${pd.count}`;
+  if (UI.discardKey !== key) { UI.discardKey = key; UI.discardSel = Object.fromEntries(RES.map(r => [r, 0])); }
+  const sel = UI.discardSel, chosen = RES.reduce((s, r) => s + sel[r], 0);
+  m.hidden = false;
+  m.innerHTML = `<div class="card"><h3>Discard ${pd.count} cards</h3><p style="color:var(--muted)">A 7 was rolled and you hold more than ${CONFIG.DISCARD_OVER} cards.</p>`
+    + RES.map(r => `<div class="drow"><span>${resIcon(r)} ${TERRAIN_INFO[r].label}</span><span style="color:var(--muted)">have ${p.res[r]}</span>`
+      + `<button data-act="ddec" data-arg="${r}"${sel[r] <= 0 ? ' disabled' : ''}>−</button><b>${sel[r]}</b>`
+      + `<button data-act="dinc" data-arg="${r}"${sel[r] >= p.res[r] || chosen >= pd.count ? ' disabled' : ''}>+</button></div>`).join('')
+    + `<button class="primary" data-act="dok"${chosen !== pd.count ? ' disabled' : ''}>Discard ${chosen}/${pd.count}</button></div>`;
+}
+
+function renderOverlay() {
+  const o = $('overlay');
+  if (G.phase !== 'over') { o.hidden = true; o.innerHTML = ''; return; }
+  o.hidden = false;
+  const rows = G.players.slice().sort((a, b) => vpOf(b.id) - vpOf(a.id))
+    .map(p => `<div><span class="sw" style="--pc:${p.color}"></span> ${p.name}: <b>${vpOf(p.id)} VP</b></div>`).join('');
+  o.innerHTML = `<div class="card"><h3>🏆 ${P(G.winner).name} ${P(G.winner).isBot ? 'wins' : 'win'}!</h3><p style="color:var(--muted)">After ${G.turnNumber} turns.</p>${rows}<p><button class="primary" data-act="newgame">Play again</button></p></div>`;
+}
+
+function render() {
+  if (typeof document === 'undefined') return;
+  if (UI.mode && !modeAvailable(UI.mode)) UI.mode = null;
+  renderBoard(); renderTop(); renderPlayers(); renderHand(); renderActions(); renderDev(); renderTrade(); renderLog(); renderModal(); renderOverlay();
+  scheduleBot();
+}
+
+function scheduleBot() {
+  if (UI.timer || !G || G.phase === 'over') return;
+  const a = actorId();
+  if (a === null || !P(a).isBot) return;
+  UI.timer = setTimeout(() => {
+    UI.timer = null;
+    const a2 = actorId();
+    if (a2 !== null && P(a2).isBot && !botAct(a2)) {
+      // failsafe: should never happen, but never let a bot stall the game
+      log(`(${P(a2).name} could not act; skipping.)`);
+      if (G.pending) { G.queue = []; G.pending = null; } else if (G.phase === 'roll') rollDice(a2); else endTurn(a2);
+    }
+    render();
+  }, CONFIG.BOT_SPEED_MS[UI.speed]);
+}
+
+function startGame() {
+  clearTimeout(UI.timer); UI.timer = null; UI.mode = null; UI.logLen = -1; UI.discardKey = null;
+  newGame({ numPlayers: +$('selPlayers').value, humanSeat: UI.human });
+}
+
+function handleAct(act, arg) {
+  const h = UI.human;
+  switch (act) {
+    case 'roll': rollDice(h); break;
+    case 'mode': UI.mode = UI.mode === arg ? null : arg; break;
+    case 'buydev': buyDev(h); break;
+    case 'end': UI.mode = null; endTurn(h); break;
+    case 'trade': bankTrade(h, UI.tradeGive, UI.tradeGet); break;
+    case 'play': UI.mode = null; playDev(h, arg); break;
+    case 'steal': doSteal(h, +arg); break;
+    case 'yop': chooseYop(h, arg); break;
+    case 'mono': chooseMono(h, arg); break;
+    case 'bless': chooseBlessing(h, +arg); break;
+    case 'pick': choosePickpocket(h, +arg); break;
+    case 'skiproads': skipFreeRoads(h); break;
+    case 'dinc': UI.discardSel[arg]++; break;
+    case 'ddec': UI.discardSel[arg]--; break;
+    case 'dok': doDiscard(h, UI.discardSel); break;
+    case 'newgame': startGame(); break;
+  }
+  render();
+}
+
+function onBoardClick(ev) {
+  const h = UI.human, pd = G.pending;
+  const vEl = ev.target.closest('[data-vert]'), eEl = ev.target.closest('[data-edge]'), hEl = ev.target.closest('[data-hex]');
+  if (vEl) {
+    const v = +vEl.dataset.vert;
+    if (pd && pd.kind === 'setupSettle' && pd.pid === h) doSetupSettle(h, v);
+    else if (UI.mode === 'settlement' && doSettle(h, v)) UI.mode = null;
+    else if (UI.mode === 'city' && doCity(h, v)) UI.mode = null;
+  } else if (eEl) {
+    const e = +eEl.dataset.edge;
+    if (pd && pd.kind === 'setupRoad' && pd.pid === h) doSetupRoad(h, e);
+    else if (pd && pd.kind === 'freeRoads' && pd.pid === h) doRoad(h, e);
+    else if (UI.mode === 'road' && doRoad(h, e)) UI.mode = null;
+  } else if (hEl && pd && pd.kind === 'robber' && pd.pid === h) {
+    moveRobber(h, +hEl.dataset.hex);
+  }
+  render();
+}
+
+function init() {
+  $('board').addEventListener('click', onBoardClick);
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-act]');
+    if (b && !b.disabled) handleAct(b.dataset.act, b.dataset.arg);
+  });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && UI.mode) { UI.mode = null; render(); } });
+  $('selSpeed').addEventListener('change', ev => { UI.speed = ev.target.value; });
+  $('tradeGive').addEventListener('change', ev => { UI.tradeGive = ev.target.value; render(); });
+  $('tradeGet').addEventListener('change', ev => { UI.tradeGet = ev.target.value; render(); });
+  $('selSpeed').value = UI.speed;
+  startGame();
+  render();
+}
+
+if (typeof document !== 'undefined') init();
+
+/* Exports for headless tests (Node loads this script in a vm context). */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    CONFIG, RES, GEO, DEV_INFO, getG: () => G, newGame, actorId, botAct, post, updateAwards,
+    doSetupSettle, doSetupRoad, rollDice, doDiscard, moveRobber, doSteal, doRoad, doSettle, doCity,
+    buyDev, bankTrade, endTurn, canPlayDev, playDev, skipFreeRoads, chooseYop, chooseMono,
+    chooseBlessing, choosePickpocket, vpOf, longestRoadFor, handSize, tradeRate, validRoadEdges,
+    validSettleSpots, canRoad,
+  };
+}
+</script>
+</body>
+</html>
